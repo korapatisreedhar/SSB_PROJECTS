@@ -15,7 +15,6 @@
 <script src="https://cdn.jsdelivr.net/npm/particles.js"></script>
 
 <style>
-
 body{
 margin:0;
 font-family:'Segoe UI',sans-serif;
@@ -25,14 +24,8 @@ min-height:100vh;
 overflow-x:hidden;
 }
 
-.navbar{
-background:rgba(0,0,0,0.7);
-}
-
-.logo{
-height:40px;
-margin-right:10px;
-}
+.navbar{background:rgba(0,0,0,0.7);}
+.logo{height:40px;margin-right:10px;}
 
 .sidebar{
 min-height:100vh;
@@ -60,18 +53,6 @@ background:rgba(255,255,255,0.2);
 border-left:4px solid #38BDF8;
 }
 
-#particles-js{
-position:absolute;
-width:100%;
-height:100%;
-z-index:0;
-}
-
-.main-area{
-position:relative;
-z-index:1;
-}
-
 .card{
 border:none;
 border-radius:15px;
@@ -84,29 +65,7 @@ width:100%;
 border-radius:10px;
 background:black;
 }
-
-.question{
-font-size:18px;
-font-weight:bold;
-margin-top:10px;
-}
-
-.timer{
-font-weight:bold;
-color:red;
-}
-
-.footer{
-text-align:center;
-padding:10px;
-background:rgba(0,0,0,0.7);
-position:fixed;
-bottom:0;
-width:100%;
-}
-
 </style>
-
 </head>
 
 <body>
@@ -114,9 +73,7 @@ width:100%;
 <nav class="navbar navbar-dark">
 <div class="container-fluid">
 <a class="navbar-brand d-flex align-items-center">
-
 <img src="{{ url_for('static', filename='media/logo.jpeg') }}" class="logo">
-
 <b>SSB Training And Placement Pvt Ltd</b>
 </a>
 </div>
@@ -126,26 +83,16 @@ width:100%;
 <div class="row">
 
 <div class="col-md-2 sidebar">
-
 <h5 class="text-center">👨‍💻 Candidate Panel</h5>
-
 <a href="/dashboard">🏠 Dashboard</a>
-
 <a href="/coding_editor">💻 Coding Assessment</a>
-
 <a class="active" href="/video_interview">🤖 AI Interview</a>
-
 <a href="/performance">📊 Performance</a>
-
 <a href="/profile">👤 Profile</a>
-
 <a href="/">🚪 Logout</a>
-
 </div>
 
-<div class="col-md-10 p-4 main-area">
-
-<div id="particles-js"></div>
+<div class="col-md-10 p-4">
 
 <h2 class="mb-4">🤖 AI Interview</h2>
 
@@ -161,25 +108,20 @@ width:100%;
 
 <h5>Interview Question</h5>
 
-<p class="question" id="question">
-Click Start Interview
-</p>
+<p id="question">Click Start Interview</p>
 
-<p class="timer">
-⏱ Time Left: <span id="time">60</span>s
-</p>
+<p id="status" style="color:green;font-weight:bold;"></p>
 
-<button class="btn btn-primary" onclick="startInterview()">
+<p>⏱ Time Left: <span id="time">60</span>s</p>
+
+<button id="startBtn" class="btn btn-primary" onclick="toggleInterview()">
 Start Interview
 </button>
 
 <hr>
 
 <h6>Your Answer (Speech-to-Text)</h6>
-<p id="speechText"></p>
-
-<h6>Score</h6>
-<p id="score">0</p>
+<p id="answer"></p>
 
 <p id="warning" style="color:red;font-weight:bold;"></p>
 
@@ -193,50 +135,301 @@ Start Interview
 
 <script>
 
-/* PARTICLES */
+/* ======================
+INTERVIEW ATTEMPT CHECK
+====================== */
 
-particlesJS("particles-js",{
-particles:{
-number:{value:70},
-color:{value:"#ffffff"},
-shape:{type:"circle"},
-opacity:{value:0.4},
-size:{value:3},
-line_linked:{
-enable:true,
-distance:150,
-color:"#ffffff",
-opacity:0.3,
-width:1
-},
-move:{enable:true,speed:2}
+fetch("/check_interview")
+.then(res=>res.json())
+.then(data=>{
+
+if(data.completed){
+
+document.getElementById("question").innerText="Interview already completed";
+document.getElementById("status").innerText="You already attempted this interview";
+document.getElementById("startBtn").disabled=true;
+
 }
+
 });
 
-/* CAMERA + MIC PERMISSION */
+/* ======================
+CAMERA PERMISSION
+====================== */
 
-async function checkPermissions(){
+let stream;
+
+async function startCamera(){
+
+document.getElementById("warning").innerText =
+"Please allow Camera and Microphone permission to continue.";
 
 try{
 
-const stream = await navigator.mediaDevices.getUserMedia({
+stream = await navigator.mediaDevices.getUserMedia({
 video:true,
 audio:true
 });
 
 document.getElementById("video").srcObject = stream;
 
+document.getElementById("warning").innerText =
+"Camera and Microphone connected successfully.";
+
+stream.getVideoTracks()[0].onended = function(){
+
+document.getElementById("warning").innerText="⚠ Camera turned OFF";
+alert("Camera is turned OFF");
+endInterview();
+
+};
+
 }catch(err){
 
-alert("Camera and Microphone access required.");
-location.reload();
+document.getElementById("warning").innerText =
+"⚠ Camera & Microphone permission denied. Please allow permissions.";
+
+alert("Please allow Camera and Microphone permission to start interview");
 
 }
 
 }
 
-/* FULLSCREEN */
+startCamera();
 
+/* ======================
+QUESTIONS
+====================== */
+
+const questions=[
+"Tell me about yourself",
+"What are your strengths",
+"Explain a challenging project you worked on",
+"Why should we select you for this internship"
+];
+
+let index=0;
+let answers=[];
+let currentAnswer="";
+
+/* ======================
+FACE CHECK
+====================== */
+
+async function checkFace(){
+
+if(!('FaceDetector' in window)) return true;
+
+const detector = new FaceDetector();
+const faces = await detector.detect(document.getElementById("video"));
+
+if(faces.length===0){
+alert("⚠ No face detected. Please sit in front of camera.");
+return false;
+}
+
+if(faces.length>1){
+alert("⚠ Multiple faces detected.");
+return false;
+}
+
+return true;
+
+}
+
+/* ======================
+SPEECH
+====================== */
+
+let recognition;
+
+function startSpeech(){
+
+recognition=new(window.SpeechRecognition||window.webkitSpeechRecognition)();
+recognition.continuous=true;
+
+recognition.onresult=function(event){
+
+let transcript=event.results[event.results.length-1][0].transcript;
+currentAnswer+=transcript+" ";
+document.getElementById("answer").innerText=currentAnswer;
+
+};
+
+recognition.start();
+
+}
+
+function speak(text){
+
+if(recognition) recognition.stop();
+
+let speech=new SpeechSynthesisUtterance(text);
+
+speech.onend=function(){
+setTimeout(()=>{ if(recognition) recognition.start(); },500);
+};
+
+window.speechSynthesis.speak(speech);
+
+}
+
+/* ======================
+ASK QUESTION
+====================== */
+
+function askQuestion(){
+
+if(currentAnswer!=""){
+answers.push(currentAnswer);
+currentAnswer="";
+document.getElementById("answer").innerText="";
+}
+
+if(index<questions.length){
+
+let q=questions[index];
+document.getElementById("question").innerText=q;
+speak(q);
+index++;
+
+}else{
+endInterview();
+}
+
+}
+
+/* ======================
+TIMER
+====================== */
+
+let time=60;
+let timer;
+
+function startTimer(){
+
+timer=setInterval(()=>{
+
+time--;
+document.getElementById("time").innerText=time;
+
+if(time<=0){
+endInterview();
+}
+
+},1000);
+
+}
+
+/* ======================
+RECORDING
+====================== */
+
+let recorder;
+let chunks=[];
+
+function startRecording(){
+
+recorder=new MediaRecorder(stream);
+recorder.ondataavailable=e=>chunks.push(e.data);
+recorder.start();
+
+}
+
+function stopRecording(){
+
+if(!recorder) return;
+
+recorder.stop();
+
+const blob=new Blob(chunks,{type:'video/webm'});
+
+let fd=new FormData();
+fd.append("video",blob,"interview.webm");
+
+fetch("/save_interview_video",{method:"POST",body:fd});
+
+}
+
+/* ======================
+INTERVIEW CONTROL
+====================== */
+
+let running=false;
+
+async function startInterview(){
+
+if(!stream){
+alert("Please allow camera access before starting interview");
+return;
+}
+
+let tracks = stream.getVideoTracks();
+
+if(tracks.length===0 || tracks[0].readyState!=="live"){
+alert("Camera must be ON to start interview");
+return;
+}
+
+let ok = await checkFace();
+if(!ok) return;
+
+enterFullScreen();
+
+running=true;
+
+document.getElementById("status").innerText="Interview Started";
+
+document.getElementById("startBtn").innerText="End Interview";
+
+startSpeech();
+askQuestion();
+startTimer();
+startRecording();
+
+}
+
+function toggleInterview(){
+
+if(!running){
+startInterview();
+}else{
+endInterview();
+}
+
+}
+
+function endInterview(){
+
+running=false;
+
+clearInterval(timer);
+
+document.getElementById("status").innerText="Interview Completed";
+
+document.getElementById("startBtn").disabled=true;
+
+stopRecording();
+
+/* SAVE INTERVIEW STATUS */
+
+fetch("/submit_interview",{method:"POST"});
+
+if(stream){
+stream.getTracks().forEach(track=>track.stop());
+}
+
+document.getElementById("question").innerText="Interview Completed";
+
+if(document.fullscreenElement){
+document.exitFullscreen();
+}
+
+setTimeout(function(){
+window.location.replace("/dashboard");
+},2500);
+
+}
 function enterFullScreen(){
 
 let elem=document.documentElement;
@@ -247,178 +440,7 @@ elem.requestFullscreen();
 
 }
 
-/* WARNINGS */
-
-let warnings=0;
-
-function addWarning(msg){
-
-warnings++;
-
-document.getElementById("warning").innerText=
-"⚠ Warning "+warnings+": "+msg;
-
-if(warnings>=3){
-
-alert("Interview terminated due to cheating activity.");
-
-location.reload();
-
-}
-
-}
-
-/* TAB SWITCH */
-
-document.addEventListener("visibilitychange",function(){
-
-if(document.hidden){
-addWarning("Tab switching detected");
-}
-
-});
-
-/* RIGHT CLICK BLOCK */
-
-navigator.mediaDevices.getUserMedia({video:true,audio:true})
-.then(stream=>{
-document.getElementById("video").srcObject=stream;
-})
-.catch(err=>{
-console.log("Camera access denied",err);
-});
-
-/* QUESTIONS */
-
-const questions=[
-
-"Tell me about yourself.",
-"What are your strengths?",
-"Explain a challenging project you worked on.",
-"Why should we select you for this internship?"
-
-];
-
-let index=0;
-
-/* SPEECH */
-
-let recognition;
-
-function startSpeech(){
-
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-if(!SpeechRecognition){
-alert("Speech Recognition not supported in this browser");
-return;
-}
-
-recognition = new SpeechRecognition();
-
-recognition.continuous=true;
-
-recognition.onresult=function(event){
-
-let text=event.results[event.results.length-1][0].transcript;
-
-document.getElementById("speechText").innerText=text;
-
-updateScore(text);
-
-};
-
-recognition.start();
-
-}
-
-/* SCORE */
-
-function updateScore(ans){
-
-let score=document.getElementById("score");
-
-if(ans.length>20){
-
-score.innerText=parseInt(score.innerText)+10;
-
-}
-
-}
-
-/* INTERVIEW */
-
-function startInterview(){
-
-startSpeech();
-askQuestion();
-startTimer();
-
-}
-
-function askQuestion(){
-
-if(index<questions.length){
-
-document.getElementById("question").innerText=questions[index];
-
-index++;
-
-setTimeout(askQuestion,20000);
-
-}else{
-
-document.getElementById("question").innerText="Interview Completed";
-
-}
-
-}
-
-/* TIMER */
-
-let time=60;
-
-function startTimer(){
-
-let t=setInterval(function(){
-
-time--;
-
-document.getElementById("time").innerText=time;
-
-if(time<=0){
-
-clearInterval(t);
-
-document.getElementById("question").innerText="Time Over";
-
-}
-
-},1000);
-
-}
-
-/* START INTERVIEW */
-
-function startInterview(){
-
-checkPermissions();
-
-enterFullScreen();
-
-startSpeech();
-
-askQuestion();
-
-startTimer();
-
-}
-
 </script>
-
-<footer class="footer">
-© 2026 SSB Training And Placement Pvt Ltd
-</footer>
 
 </body>
 </html>

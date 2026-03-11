@@ -26,8 +26,6 @@ color:white;
 min-height:100vh;
 }
 
-/* NAVBAR */
-
 .navbar{
 background:rgba(0,0,0,0.6);
 backdrop-filter:blur(8px);
@@ -37,8 +35,6 @@ backdrop-filter:blur(8px);
 height:40px;
 margin-right:10px;
 }
-
-/* SIDEBAR */
 
 .sidebar{
 min-height:100vh;
@@ -66,8 +62,6 @@ background:rgba(255,255,255,0.2);
 border-left:4px solid #38BDF8;
 }
 
-/* CARDS */
-
 .card{
 border:none;
 border-radius:15px;
@@ -79,8 +73,6 @@ transition:0.3s;
 .card:hover{
 transform:translateY(-6px);
 }
-
-/* PARTICLES */
 
 #particles-js{
 position:absolute;
@@ -95,8 +87,6 @@ z-index:0;
 position:relative;
 z-index:1;
 }
-
-/* FOOTER */
 
 .footer{
 text-align:center;
@@ -113,8 +103,6 @@ width:100%;
 </head>
 
 <body>
-
-<!-- NAVBAR -->
 
 <nav class="navbar navbar-dark">
 
@@ -138,27 +126,18 @@ width:100%;
 
 <div class="row">
 
-<!-- SIDEBAR -->
-
 <div class="col-md-2 sidebar">
 
 <h5 class="text-center">👨‍💻 Candidate Panel</h5>
 
 <a href="/dashboard">🏠 Dashboard</a>
-
 <a href="/coding_editor">💻 Coding Assessment</a>
-
 <a href="/video_interview">🤖 AI Interview</a>
-
 <a class="active" href="/performance">📊 Performance</a>
-
 <a href="/profile">👤 Profile</a>
-
 <a href="/">🚪 Logout</a>
 
 </div>
-
-<!-- MAIN AREA -->
 
 <div class="col-md-10 p-4 main-area">
 
@@ -168,98 +147,62 @@ width:100%;
 
 <div class="row g-4">
 
-<!-- CODING SCORE -->
-
 <div class="col-md-4">
-
 <div class="card text-center p-4">
-
 <i class="fa fa-code fa-3x text-primary"></i>
-
 <h4 class="mt-3">Coding Score</h4>
-
-<h2>85%</h2>
-
+<h2>{{ coding_score|default(0) }}%</h2>
 <p>Excellent problem solving ability</p>
-
 </div>
-
 </div>
-
-<!-- AI INTERVIEW -->
 
 <div class="col-md-4">
-
 <div class="card text-center p-4">
-
 <i class="fa fa-robot fa-3x text-success"></i>
-
 <h4 class="mt-3">AI Interview</h4>
-
-<h2>78%</h2>
-
+<h2>{{ interview_score|default(0) }}%</h2>
 <p>Good communication skills</p>
-
 </div>
-
 </div>
-
-<!-- OVERALL -->
 
 <div class="col-md-4">
-
 <div class="card text-center p-4">
-
 <i class="fa fa-chart-line fa-3x text-warning"></i>
-
 <h4 class="mt-3">Overall Score</h4>
-
-<h2>81%</h2>
-
+<h2>{{ overall|default(0) }}%</h2>
 <p>Strong candidate for internship</p>
-
 </div>
-
 </div>
 
 </div>
 
 <br>
-
-<!-- PROGRESS -->
 
 <div class="card p-4">
 
 <h5>Overall Performance</h5>
 
 <div class="progress">
-
-<div class="progress-bar bg-success" style="width:81%">
-81%
+ <div class="progress-bar bg-success"
+     role="progressbar"
+     style="width: {{ overall }}%;">
+     {{ overall }}%
 </div>
-
 </div>
 
 </div>
 
 <br>
 
-<!-- FEEDBACK -->
-
 <div class="card p-4">
 
 <h5>AI Interview Feedback</h5>
 
 <ul>
-
 <li>✔ Clear communication</li>
-
 <li>✔ Good technical understanding</li>
-
 <li>✔ Confident presentation</li>
-
 <li>⚠ Improve response speed</li>
-
 </ul>
 
 </div>
@@ -302,5 +245,4 @@ speed:2
 </footer>
 
 </body>
-
 </html>

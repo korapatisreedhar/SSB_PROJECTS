@@ -68,6 +68,48 @@ def results():
     return "Interview Results Page"
 
 
+@app.route("/performance")
+def performance():
+
+    email = session.get("email")
+
+    if not email:
+        return redirect("/")
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute("SELECT id FROM users WHERE email=?", (email,))
+    user = cur.fetchone()
+
+    if not user:
+        conn.close()
+        return redirect("/dashboard")
+
+    user_id = user[0]
+
+    # Coding score
+    cur.execute("SELECT score FROM submissions WHERE user_id=?", (user_id,))
+    coding = cur.fetchone()
+    coding_score = coding[0] if coding else 0
+
+    # AI interview score
+    cur.execute("SELECT score FROM interviews WHERE candidate_id=?", (user_id,))
+    interview = cur.fetchone()
+    interview_score = interview[0] if interview else 0
+
+    overall = int((coding_score + interview_score) / 2)
+
+    conn.close()
+
+    return render_template(
+        "performance.html",
+        coding_score=coding_score,
+        interview_score=interview_score,
+        overall=overall
+    )
+
+
 # ===============================
 # ADMIN PANEL ROUTES
 # ===============================
@@ -504,6 +546,143 @@ def view_coding_questions():
     conn.close()
 
     return render_template("view_coding_questions.html", problems=problems)
+
+
+
+
+
+# ===============================
+# SAVE AI INTERVIEW RESULT
+# ===============================
+
+@app.route("/save_ai_result", methods=["POST"])
+def save_ai_result():
+
+    data = request.json
+
+    score = data.get("score")
+    answer = data.get("answer")
+
+    user_id = session.get("user_id")
+
+    if not user_id:
+        return jsonify({"error": "User not logged in"}), 401
+
+    # simple feedback
+    if int(score) >= 80:
+        feedback = "Excellent communication"
+    elif int(score) >= 50:
+        feedback = "Good communication"
+    else:
+        feedback = "Needs improvement"
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute("""
+    INSERT INTO interviews(candidate_id, score, feedback, status)
+    VALUES (?, ?, ?, ?)
+    """, (user_id, score, feedback, "Completed"))
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({"message": "AI result saved"})
+
+
+
+# ===============================
+# SAVE INTERVIEW VIDEO
+# ===============================
+@app.route("/save_interview_video", methods=["POST"])
+def save_interview_video():
+
+    email = session.get("email")
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute("SELECT id FROM users WHERE email=?", (email,))
+    user = cur.fetchone()
+
+    if not user:
+        return "User not found"
+
+    user_id = user[0]
+
+    video = request.files["video"]
+
+    filename = "interview_" + str(user_id) + ".webm"
+
+    path = "static/interviews/" + filename
+
+    video.save(path)
+
+    cur.execute("""
+    INSERT INTO interviews(candidate_id, recording)
+    VALUES(?,?)
+    """,(user_id, path))
+
+    conn.commit()
+    conn.close()
+
+    return "Video Saved"
+
+
+@app.route("/complete_interview", methods=["POST"])
+def complete_interview():
+    session["interview_completed"] = True
+    return {"status": "ok"}
+
+
+# check-interview
+@app.route("/check_interview")
+def check_interview():
+
+    email = session.get("email")
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute("SELECT id FROM users WHERE email=?", (email,))
+    user = cur.fetchone()
+
+    if not user:
+        return jsonify({"completed": False})
+
+    user_id = user[0]
+
+    cur.execute("SELECT * FROM interviews WHERE candidate_id=?", (user_id,))
+    interview = cur.fetchone()
+
+    conn.close()
+
+    return jsonify({"completed": True if interview else False})
+#  sumbit_interview
+@app.route("/submit_interview", methods=["POST"])
+def submit_interview():
+
+    email = session.get("email")
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute("SELECT id FROM users WHERE email=?", (email,))
+    user = cur.fetchone()
+
+    if user:
+        user_id = user[0]
+
+        cur.execute("""
+        INSERT INTO interviews (candidate_id, status)
+        VALUES (?, ?)
+        """, (user_id, "completed"))
+
+        conn.commit()
+
+    conn.close()
+
+    return {"status": "ok"}
 
 
 
