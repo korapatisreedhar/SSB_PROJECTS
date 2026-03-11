@@ -2,7 +2,6 @@ from flask import Flask, request, jsonify, render_template, redirect, session
 from flask_jwt_extended import JWTManager
 from auth import register_user, login_user
 from database import init_db
-from flask import session
 import sqlite3
 
 app = Flask(__name__)
@@ -34,11 +33,12 @@ def register():
 def login():
     data = request.json
 
-    # save email in session
-    if data and "email" in data:
+    response = login_user(data)
+
+    if "role" in response.json:
         session["email"] = data["email"]
 
-    return login_user(data)
+    return response
 
 # DASHBOARD PAGE
 @app.route("/dashboard")
@@ -151,47 +151,27 @@ def admin_candidates():
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
-    cur.execute("SELECT id,name,email FROM users WHERE role='candidate'")
+    # SHOW ALL USERS (admin + candidate)
+    cur.execute("SELECT id,name,email,role FROM users")
+
     candidates = cur.fetchall()
 
     conn.close()
 
     return render_template("admin_candidates.html", candidates=candidates)
 
-
-# Add Candidate
-@app.route("/add_candidate", methods=["POST"])
-def add_candidate():
-
-    name = request.form.get("name")
-    email = request.form.get("email")
-    password = request.form.get("password")
-
-    import bcrypt
-    hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
-
-    conn = sqlite3.connect("database.db")
-    cur = conn.cursor()
-
-    cur.execute(
-        "INSERT INTO users (name,email,password,role) VALUES (?,?,?,?)",
-        (name, email, hashed, "candidate")
-    )
-
-    conn.commit()
-    conn.close()
-
-    return jsonify({"message": "Candidate created"})
-
-
 # Delete User
 @app.route("/delete_user/<int:user_id>")
 def delete_user(user_id):
+
+    if "email" not in session:
+        return redirect("/")
 
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
     cur.execute("DELETE FROM users WHERE id=?", (user_id,))
+
     conn.commit()
     conn.close()
 
@@ -220,6 +200,8 @@ def add_problem():
         "INSERT INTO problems (title, description) VALUES (?, ?)",
         (title, description)
     )
+
+    problem_id =cur.lastrowid
 
     conn.commit()
     conn.close()
@@ -453,6 +435,76 @@ def view_profile(user_id):
     conn.close()
 
     return render_template("admin_view_profile.html", profile=profile)
+# Open Add Coding Problem Page
+@app.route("/add_coding_problem_page")
+def add_coding_problem_page():
+    return render_template("add_coding_problem.html")
+
+
+# Save Coding Problem
+@app.route("/add_coding_problem", methods=["POST"])
+def add_coding_problem():
+
+    title = request.form["title"]
+    difficulty = request.form["difficulty"]
+    description = request.form["description"]
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    # Insert coding problem
+    cur.execute(
+        "INSERT INTO coding_problems (title,difficulty,description) VALUES (?,?,?)",
+        (title, difficulty, description)
+    )
+
+    problem_id = cur.lastrowid
+
+    # Save test cases
+    for i in range(1, 6):   # up to 5 test cases
+
+        inputs = []
+
+        # collect multiple inputs (max 5 inputs per testcase)
+        for j in range(1, 6):
+            val = request.form.get(f"input{j}_{i}")
+            if val:
+                inputs.append(val)
+
+        input_data = "\n".join(inputs)
+
+        output = request.form.get(f"output_{i}")
+
+        if input_data and output:
+            cur.execute(
+                "INSERT INTO testcases(problem_id,input,output) VALUES (?,?,?)",
+                (problem_id, input_data, output)
+            )
+
+    conn.commit()
+    conn.close()
+
+    return redirect("/admin_coding_judge")
+
+
+@app.route("/view_questions")
+def view_questions():
+    return render_template("view_questions.html")
+
+
+@app.route("/view_coding_questions")
+def view_coding_questions():
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute("SELECT id,title,difficulty,description FROM coding_problems")
+    problems = cur.fetchall()
+
+    conn.close()
+
+    return render_template("view_coding_questions.html", problems=problems)
+
 
 
 if __name__ == "__main__":

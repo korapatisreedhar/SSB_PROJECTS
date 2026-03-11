@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>Add Coding Problem</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+</head>
+
+<body class="bg-light">
+
+<div class="container mt-5">
+
+<div class="card shadow p-4">
+
+<h2 class="mb-4">Add Coding Problem</h2>
+
+<form action="/add_coding_problem" method="POST">
+
+<div class="mb-3">
+<label class="form-label">Problem Title</label>
+<input type="text" name="title" class="form-control" required>
+</div>
+
+<div class="mb-3">
+<label class="form-label">Difficulty</label>
+<select name="difficulty" class="form-control">
+<option value="Easy">Easy</option>
+<option value="Medium">Medium</option>
+<option value="Hard">Hard</option>
+</select>
+</div>
+
+<div class="mb-3">
+<label class="form-label">Description</label>
+<textarea name="description" class="form-control" rows="5"></textarea>
+</div>
+
+<div class="mb-3">
+<label class="form-label">Inputs Per Test Case</label>
+<select id="inputCount" class="form-control" onchange="createTestCases()">
+<option value="1">1 Input</option>
+<option value="2">2 Inputs</option>
+<option value="3">3 Inputs</option>
+<option value="4">4 Inputs</option>
+<option value="5">5 Inputs</option>
+</select>
+</div>
+
+<div id="testcases"></div>
+
+<button type="submit" class="btn btn-success">
+Add Problem
+</button>
+
+<a href="/admin_coding_judge" class="btn btn-secondary">
+Back
+</a>
+
+</form>
+
+</div>
+
+</div>
+
+<script>
+
+function createTestCases(){
+
+let container = document.getElementById("testcases")
+let inputCount = document.getElementById("inputCount").value
+
+container.innerHTML = ""
+
+for(let i=1;i<=5;i++){   // always 5 test cases
+
+let inputsHTML=""
+
+for(let j=1;j<=inputCount;j++){
+
+inputsHTML += `
+<label>Input ${j}</label>
+<textarea name="input${j}_${i}" class="form-control mb-2"></textarea>
+`
+
+}
+
+container.innerHTML += `
+
+<div class="card p-3 mt-3">
+
+<h5>Test Case ${i}</h5>
+
+${inputsHTML}
+
+<label>Expected Output</label>
+<textarea name="output_${i}" class="form-control"></textarea>
+
+</div>
+
+`
+
+}
+
+}
+
+window.onload = createTestCases
+
+</script>
+
+</body>
+</html>

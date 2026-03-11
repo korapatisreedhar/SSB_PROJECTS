@@ -3,28 +3,46 @@ import bcrypt
 from flask import jsonify, session
 from flask_jwt_extended import create_access_token
 
+import sqlite3
+import bcrypt
+from flask import jsonify, session
+from flask_jwt_extended import create_access_token
+
 
 def register_user(data):
 
-    name = data["name"]
-    email = data["email"]
-    password = data["password"]
+    name = data.get("name")
+    email = data.get("email")
+    password = data.get("password")
     role = data.get("role", "candidate")
 
     hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
 
-    conn = sqlite3.connect("database.db")
-    cur = conn.cursor()
+    try:
 
-    cur.execute(
-        "INSERT INTO users(name,email,password,role) VALUES(?,?,?,?)",
-        (name, email, hashed, role)
-    )
+        conn = sqlite3.connect("database.db")
+        cur = conn.cursor()
 
-    conn.commit()
-    conn.close()
+        # check if email already exists
+        cur.execute("SELECT id FROM users WHERE email=?", (email,))
+        existing = cur.fetchone()
 
-    return jsonify({"msg": "User registered"})
+        if existing:
+            return jsonify({"msg": "Email already registered"})
+
+        cur.execute(
+            "INSERT INTO users(name,email,password,role) VALUES(?,?,?,?)",
+            (name, email, hashed, role)
+        )
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({"msg": "User registered successfully"})
+
+    except Exception as e:
+        print("REGISTER ERROR:", e)
+        return jsonify({"msg": "Server error"})
 
 
 def login_user(data):
@@ -45,7 +63,7 @@ def login_user(data):
     conn.close()
 
     if not user:
-        return jsonify({"msg": "Invalid Credentials"})
+        return jsonify({"msg": "Invalid Credentials"}), 401
 
     user_id, hashed, role = user
 

@@ -25,28 +25,31 @@ def init_db():
         score INTEGER,
         feedback TEXT,
         recording TEXT,
-        status TEXT DEFAULT 'Pending'
+        status TEXT DEFAULT 'Pending',
+        FOREIGN KEY(candidate_id) REFERENCES users(id)
     )
     """)
 
     # PROBLEMS TABLE
     cur.execute("""
-    CREATE TABLE IF NOT EXISTS problems(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT,
-        description TEXT
-    )
-    """)
+    CREATE TABLE IF NOT EXISTS coding_problems(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    difficulty TEXT,
+    description TEXT NOT NULL
+)
+""")
 
     # TEST CASES TABLE
     cur.execute("""
-    CREATE TABLE IF NOT EXISTS testcases(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        problem_id INTEGER,
-        input TEXT,
-        output TEXT
-    )
-    """)
+CREATE TABLE IF NOT EXISTS testcases(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    problem_id INTEGER,
+    input TEXT,
+    output TEXT,
+    FOREIGN KEY(problem_id) REFERENCES coding_problems(id)
+)
+""")
 
     # SUBMISSIONS TABLE
     cur.execute("""
@@ -73,8 +76,11 @@ def init_db():
     )
     """)
 
+
+
+
     # CHECK IF ADMIN EXISTS
-    cur.execute("SELECT * FROM users WHERE email=?", ("admin@gmail.com",))
+    cur.execute("SELECT id FROM users WHERE email=?", ("admin@gmail.com",))
     admin = cur.fetchone()
 
     if not admin:
@@ -87,3 +93,5 @@ def init_db():
 
     conn.commit()
     conn.close()
+
+    
