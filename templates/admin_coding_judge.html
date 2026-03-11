@@ -158,83 +158,44 @@ width:100%;
 
 <div class="col-md-10 main-area">
 
-<h2 class="mb-4">Coding Test Judge System</h2>
-
-<div class="card-box">
-
-<h4>Add Coding Problem</h4>
+<h2 class="mb-4">Welcome to Coding Judge</h2>
 
 <div class="row">
 
-<div class="col-md-6 mb-3">
-<label>Problem Title</label>
-<input class="form-control">
-</div>
-
-<div class="col-md-6 mb-3">
-<label>Difficulty</label>
-<select class="form-control">
-<option>Easy</option>
-<option>Medium</option>
-<option>Hard</option>
-</select>
-</div>
-
-<div class="col-md-12 mb-3">
-<label>Description</label>
-<textarea class="form-control" rows="3"></textarea>
-</div>
-
-</div>
-
-</div>
-
-<div class="card-box">
-
-<h4>Code Editor</h4>
-
-<div id="editor"></div>
-
-<br>
-
-<button class="btn btn-success" onclick="runCode()">Run Code</button>
-
-</div>
-
-<div class="card-box">
-
-<h4>Test Cases</h4>
-
-<div class="row">
-
+<!-- Add Coding Problems -->
 <div class="col-md-6">
 
-<label>Input</label>
+<div class="card-box text-center">
 
-<textarea id="input" class="form-control">2 7 11 15
-9</textarea>
+<i class="fa-solid fa-code fa-3x mb-3 text-primary"></i>
+
+<h4>Add Coding Problems</h4>
+
+<p>Create and manage programming problems for candidates.</p>
+
+<a href="/add_coding_problem_page" class="btn btn-primary">
+Add Coding Problem
+</a>
 
 </div>
 
+</div>
+
+
+<!-- Add MCQ Questions -->
 <div class="col-md-6">
 
-<label>Expected Output</label>
+<div class="card-box text-center">
 
-<textarea id="expected" class="form-control">0 1</textarea>
+<i class="fa-solid fa-list fa-3x mb-3 text-success"></i>
 
-</div>
+<h4>Add MCQ Questions</h4>
 
-</div>
+<p>Create multiple choice questions for candidate assessments.</p>
 
-</div>
-
-<div class="card-box">
-
-<h4>Judge Result</h4>
-
-<div id="result" class="result">
-Waiting for execution...
-</div>
+<a href="/add_mcq_page" class="btn btn-success">
+Add MCQ Questions
+</a>
 
 </div>
 

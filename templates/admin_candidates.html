@@ -148,26 +148,36 @@ width:100%;
 
 <h4>Add Candidate & Generate Login</h4>
 
+
 <div class="row">
 
-<div class="col-md-4">
+<div class="col-md-3">
 <label>Name</label>
 <input id="name" class="form-control" required>
 </div>
 
-<div class="col-md-4">
+<div class="col-md-3">
 <label>Email</label>
 <input id="email" class="form-control" required>
 </div>
 
-<div class="col-md-4">
+<div class="col-md-3">
 <label>Password</label>
 <input id="password" type="password" class="form-control" autocomplete="off" required>
+</div>
+
+<div class="col-md-3">
+<label>Role</label>
+<select id="role" class="form-control">
+<option value="candidate">Candidate</option>
+<option value="admin">Admin</option>
+</select>
 </div>
 
 </div>
 
 <br>
+
 
 <button class="btn btn-primary" onclick="addCandidate()">Create Login</button>
 
@@ -175,7 +185,7 @@ width:100%;
 
 <div class="card-box">
 
-<h4>Candidate List</h4>
+<h4>User List</h4>
 
 <table class="table table-striped">
 
@@ -184,6 +194,7 @@ width:100%;
 <tr>
 <th>Name</th>
 <th>Email</th>
+<th>Role</th>
 <th>Password</th>
 <th>Status</th>
 <th>Action</th>
@@ -198,6 +209,13 @@ width:100%;
 <tr>
 <td>{{ c[1] }}</td>
 <td>{{ c[2] }}</td>
+<td>
+{% if c[3]=='admin' %}
+<span class="badge bg-danger">Admin</span>
+{% else %}
+<span class="badge bg-success">Candidate</span>
+{% endif %}
+</td>
 <td>******</td>
 <td><span class="badge bg-success">Active</span></td>
 
@@ -209,7 +227,7 @@ View Profile
 
 <a href="/delete_user/{{c[0]}}" 
 class="btn btn-danger btn-sm"
-onclick="return confirm('Delete this candidate?')">
+onclick="return confirm('Delete this user?')">
 Delete
 </a>
 
@@ -232,12 +250,12 @@ Delete
 </div>
 
 <script>
-
 function addCandidate(){
 
-let name=document.getElementById("name").value
-let email=document.getElementById("email").value
-let password=document.getElementById("password").value
+let name = document.getElementById("name").value
+let email = document.getElementById("email").value
+let password = document.getElementById("password").value
+let role = document.getElementById("role").value
 
 if(name=="" || email=="" || password==""){
 alert("Please fill all fields")
@@ -253,23 +271,33 @@ body:JSON.stringify({
 name:name,
 email:email,
 password:password,
-role:"candidate"
+role:role
 })
 })
 
-.then(res=>res.json())
+.then(response => response.json())
 
-.then(data=>{
-alert("Candidate Created Successfully")
-location.reload()
+.then(data => {
+
+if(data.message || data.msg){
+alert("User Created Successfully")
+
+// reload page to update candidate list
+window.location.href="/admin_candidates"
+
+}else{
+alert("Error creating user")
+}
+
 })
 
 .catch(error=>{
-console.error("Error:",error)
-alert("Error creating candidate")
+console.log(error)
+alert("Server error")
 })
 
 }
+
 
 particlesJS("particles-js",{
 
