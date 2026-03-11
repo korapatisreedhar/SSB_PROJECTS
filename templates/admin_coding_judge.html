@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Admin Coding Judge</title>
+
+<link rel="icon" href="{{ url_for('static', filename='media/logo.jpeg') }}">
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/particles.js"></script>
+
+<style>
+
+body{
+margin:0;
+font-family:'Segoe UI',sans-serif;
+background:linear-gradient(135deg,#1e3c72,#2a5298);
+color:white;
+}
+
+#particles-js{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+z-index:0;
+}
+
+.navbar{
+background:rgba(0,0,0,0.6);
+}
+
+.logo{
+height:40px;
+margin-right:10px;
+}
+
+.sidebar{
+min-height:100vh;
+background:rgba(0,0,0,0.5);
+padding-top:25px;
+position:relative;
+z-index:1;
+}
+
+.sidebar a{
+display:block;
+color:white;
+padding:12px 20px;
+text-decoration:none;
+border-radius:6px;
+margin:6px 10px;
+transition:0.3s;
+}
+
+.sidebar a:hover{
+background:rgba(255,255,255,0.2);
+transform:translateX(6px);
+}
+
+.sidebar a.active{
+background:rgba(255,255,255,0.2);
+border-left:4px solid #38BDF8;
+}
+
+.main-area{
+position:relative;
+z-index:1;
+padding:30px;
+}
+
+.card-box{
+background:white;
+color:black;
+border-radius:12px;
+padding:20px;
+margin-bottom:20px;
+box-shadow:0 8px 25px rgba(0,0,0,0.3);
+}
+
+#editor{
+height:350px;
+border:1px solid #ccc;
+}
+
+.result{
+background:#1e1e1e;
+color:#00ff9c;
+padding:12px;
+font-family:monospace;
+border-radius:6px;
+height:120px;
+overflow:auto;
+}
+
+.footer{
+text-align:center;
+padding:10px;
+background:rgba(0,0,0,0.6);
+position:fixed;
+bottom:0;
+width:100%;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div id="particles-js"></div>
+
+<nav class="navbar navbar-dark">
+
+<div class="container-fluid">
+
+<a class="navbar-brand d-flex align-items-center">
+
+<img src="{{ url_for('static', filename='media/logo.jpeg') }}" class="logo">
+
+<b>SSB Training And Placement Pvt Ltd - Admin</b>
+
+</a>
+
+</div>
+
+</nav>
+
+<div class="container-fluid">
+
+<div class="row">
+
+<div class="col-md-2 sidebar">
+
+<h5 class="text-center">⚙ Admin Panel</h5>
+
+<a href="/admin_dashboard">📊 Dashboard</a>
+
+<a href="/admin_candidates">👥 Candidates</a>
+
+<a class="active" href="#">💻 Coding Judge</a>
+
+<a href="/admin_results">📈 Results</a>
+
+<a href="/admin_ai_interviews">🤖 AI Interviews</a>
+
+</div>
+
+<div class="col-md-10 main-area">
+
+<h2 class="mb-4">Coding Test Judge System</h2>
+
+<div class="card-box">
+
+<h4>Add Coding Problem</h4>
+
+<div class="row">
+
+<div class="col-md-6 mb-3">
+<label>Problem Title</label>
+<input class="form-control">
+</div>
+
+<div class="col-md-6 mb-3">
+<label>Difficulty</label>
+<select class="form-control">
+<option>Easy</option>
+<option>Medium</option>
+<option>Hard</option>
+</select>
+</div>
+
+<div class="col-md-12 mb-3">
+<label>Description</label>
+<textarea class="form-control" rows="3"></textarea>
+</div>
+
+</div>
+
+</div>
+
+<div class="card-box">
+
+<h4>Code Editor</h4>
+
+<div id="editor"></div>
+
+<br>
+
+<button class="btn btn-success" onclick="runCode()">Run Code</button>
+
+</div>
+
+<div class="card-box">
+
+<h4>Test Cases</h4>
+
+<div class="row">
+
+<div class="col-md-6">
+
+<label>Input</label>
+
+<textarea id="input" class="form-control">2 7 11 15
+9</textarea>
+
+</div>
+
+<div class="col-md-6">
+
+<label>Expected Output</label>
+
+<textarea id="expected" class="form-control">0 1</textarea>
+
+</div>
+
+</div>
+
+</div>
+
+<div class="card-box">
+
+<h4>Judge Result</h4>
+
+<div id="result" class="result">
+Waiting for execution...
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
+
+require(["vs/editor/editor.main"], function () {
+
+window.editor = monaco.editor.create(document.getElementById('editor'), {
+
+value: `# Write your solution here
+
+def twoSum(nums,target):
+    pass`,
+
+language: "python",
+
+theme: "vs-dark"
+
+});
+
+});
+
+function runCode(){
+
+const result=document.getElementById("result")
+
+result.innerText="Running code...\n"
+
+setTimeout(()=>{
+
+result.innerText += "Test Case 1: PASS\n"
+result.innerText += "Test Case 2: PASS\n"
+result.innerText += "Execution Time: 0.12s"
+
+},1500)
+
+}
+
+particlesJS("particles-js",{
+
+particles:{
+number:{value:70},
+color:{value:"#ffffff"},
+shape:{type:"circle"},
+opacity:{value:0.4},
+size:{value:3},
+line_linked:{
+enable:true,
+distance:150,
+color:"#ffffff",
+opacity:0.3,
+width:1
+},
+move:{
+enable:true,
+speed:2
+}
+}
+
+});
+
+</script>
+
+<footer class="footer">
+© 2026 SSB Training And Placement Pvt Ltd
+</footer>
+
+</body>
+
+</html>

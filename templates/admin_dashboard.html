@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Admin Dashboard</title>
+
+<link rel="icon" href="{{ url_for('static', filename='media/logo.jpeg') }}">
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<script src="https://cdn.jsdelivr.net/npm/particles.js" defer></script>
+
+<style>
+
+body{
+margin:0;
+font-family:'Segoe UI',sans-serif;
+background:linear-gradient(135deg,#1e3c72,#2a5298);
+color:white;
+}
+
+/* PARTICLES */
+
+#particles-js{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+z-index:0;
+}
+
+/* NAVBAR */
+
+.navbar{
+background:rgba(0,0,0,0.6);
+}
+
+.logo{
+height:40px;
+margin-right:10px;
+}
+
+/* SIDEBAR */
+
+.sidebar{
+min-height:100vh;
+background:rgba(0,0,0,0.5);
+padding-top:25px;
+position:relative;
+z-index:1;
+}
+
+.sidebar a{
+display:block;
+color:white;
+padding:12px 20px;
+text-decoration:none;
+border-radius:6px;
+margin:6px 10px;
+transition:0.3s;
+}
+
+.sidebar a:hover{
+background:rgba(255,255,255,0.2);
+transform:translateX(6px);
+}
+
+.sidebar a.active{
+background:rgba(255,255,255,0.2);
+border-left:4px solid #38BDF8;
+}
+
+/* MAIN AREA */
+
+.main-area{
+position:relative;
+z-index:1;
+padding:30px;
+}
+
+/* STAT CARDS */
+
+.stat-card{
+background:white;
+color:black;
+border-radius:12px;
+padding:20px;
+text-align:center;
+box-shadow:0 8px 25px rgba(0,0,0,0.3);
+transition:0.3s;
+}
+
+.stat-card:hover{
+transform:translateY(-5px);
+}
+
+.stat-icon{
+font-size:35px;
+color:#0ea5e9;
+}
+
+/* TABLE */
+
+.table-card{
+background:white;
+color:black;
+border-radius:12px;
+padding:20px;
+box-shadow:0 8px 25px rgba(0,0,0,0.3);
+}
+
+/* FOOTER */
+
+.footer{
+text-align:center;
+padding:10px;
+background:rgba(0,0,0,0.6);
+position:fixed;
+bottom:0;
+width:100%;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div id="particles-js"></div>
+
+<nav class="navbar navbar-dark">
+
+<div class="container-fluid">
+
+<a class="navbar-brand d-flex align-items-center">
+
+<img src="{{ url_for('static', filename='media/logo.jpeg') }}" class="logo">
+
+<b>SSB Training And Placement Pvt Ltd - Admin</b>
+
+</a>
+
+<a href="/" class="btn btn-light">Logout</a>
+
+</div>
+
+</nav>
+
+<div class="container-fluid">
+
+<div class="row">
+
+<div class="col-md-2 sidebar">
+
+<h5 class="text-center">⚙ Admin Panel</h5>
+
+<a class="active" href="/admin_dashboard">📊 Dashboard</a>
+
+<a href="/admin_candidates">👥 Candidates</a>
+
+<a href="/admin_coding_judge">💻 Coding Judge</a>
+
+<a href="/admin_results">📈 Coding Results</a>
+
+<a href="/admin_ai_interviews">🤖 AI Interviews</a>
+
+</div>
+
+<div class="col-md-10 main-area">
+
+<h2 class="mb-4">Admin Dashboard</h2>
+
+<div class="row g-4">
+
+<div class="col-md-3">
+<div class="stat-card">
+<i class="fa fa-users stat-icon"></i>
+<h3 class="mt-2">{{ total_candidates or 0 }}</h3>
+<p>Total Candidates</p>
+</div>
+</div>
+
+<div class="col-md-3">
+<div class="stat-card">
+<i class="fa fa-code stat-icon"></i>
+<h3 class="mt-2">{{ coding_tests or 0 }}</h3>
+<p>Coding Tests</p>
+</div>
+</div>
+
+<div class="col-md-3">
+<div class="stat-card">
+<i class="fa fa-robot stat-icon"></i>
+<h3 class="mt-2">{{ ai_interviews or 0 }}</h3>
+<p>AI Interviews</p>
+</div>
+</div>
+
+<div class="col-md-3">
+<div class="stat-card">
+<i class="fa fa-user-check stat-icon"></i>
+<h3 class="mt-2">{{ selected_candidates or 0 }}</h3>
+<p>Selected Candidates</p>
+</div>
+</div>
+
+</div>
+
+<br>
+
+<div class="table-card">
+
+<h4>Recent Candidates</h4>
+
+<table class="table table-striped">
+
+<thead>
+
+<tr>
+<th>Name</th>
+<th>Email</th>
+<th>Coding Score</th>
+<th>Interview Score</th>
+<th>Status</th>
+</tr>
+
+</thead>
+
+<tbody>
+
+{% for c in candidates %}
+
+<tr>
+<td>{{ c[0] }}</td>
+<td>{{ c[1] }}</td>
+<td>{{ c[2] }}</td>
+<td>{{ c[3] }}</td>
+<td>
+<span class="badge 
+{% if c[4]=='Selected' %}
+bg-success
+{% elif c[4]=='Pending' %}
+bg-warning
+{% else %}
+bg-danger
+{% endif %}
+">
+{{ c[4] }}
+</span>
+</td>
+</tr>
+
+{% endfor %}
+
+</tbody>
+
+</table>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+particlesJS("particles-js",{
+
+particles:{
+number:{value:70},
+color:{value:"#ffffff"},
+shape:{type:"circle"},
+opacity:{value:0.4},
+size:{value:3},
+line_linked:{
+enable:true,
+distance:150,
+color:"#ffffff",
+opacity:0.3,
+width:1
+},
+move:{
+enable:true,
+speed:2
+}
+}
+
+});
+
+</script>
+
+<footer class="footer">
+© 2026 SSB Training And Placement Pvt Ltd
+</footer>
+
+</body>
+
+</html>

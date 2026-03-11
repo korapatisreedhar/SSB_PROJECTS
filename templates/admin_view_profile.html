@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Candidate Profile</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<style>
+body{
+background:#f5f7fa;
+}
+.profile-card{
+max-width:600px;
+margin:auto;
+margin-top:80px;
+box-shadow:0 10px 25px rgba(0,0,0,0.2);
+border-radius:10px;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="card profile-card">
+
+<div class="card-header bg-primary text-white text-center">
+<h2>Candidate Profile</h2>
+</div>
+
+<div class="card-body">
+{% if profile %}
+
+<p class="fs-5"><strong>Name:</strong> {{ profile[0] }}</p>
+
+<p class="fs-5"><strong>Email:</strong> {{ profile[1] }}</p>
+
+<p class="fs-5"><strong>Phone:</strong> {{ profile[2] if profile[2] else "Not Provided" }}</p>
+
+<p class="fs-5"><strong>College:</strong> {{ profile[3] if profile[3] else "Not Provided" }}</p>
+
+<p class="fs-5"><strong>Skills:</strong> {{ profile[4] if profile[4] else "Not Provided" }}</p>
+
+{% else %}
+
+<p class="text-danger">Candidate profile not filled yet.</p>
+
+{% endif %}
+</div>
+
+<div class="card-footer text-center">
+<a href="/admin_candidates" class="btn btn-secondary">Back</a>
+</div>
+
+</div>
+
+</div>
+
+</body>
+</html>

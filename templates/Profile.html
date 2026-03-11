@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Profile</title>
+
+<link rel="icon" href="{{ url_for('static', filename='media/logo.jpeg') }}">
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<script src="https://cdn.jsdelivr.net/npm/particles.js"></script>
+
+<style>
+
+body{
+margin:0;
+font-family:'Segoe UI',sans-serif;
+background:linear-gradient(135deg,#1e3c72,#2a5298);
+color:white;
+min-height:100vh;
+animation:fadeIn 1s ease;
+}
+
+@keyframes fadeIn{
+from{opacity:0; transform:translateY(10px);}
+to{opacity:1; transform:translateY(0);}
+}
+
+.navbar{
+background:rgba(0,0,0,0.6);
+backdrop-filter:blur(8px);
+}
+
+.logo{
+height:40px;
+margin-right:10px;
+}
+
+.sidebar{
+min-height:100vh;
+background:rgba(0,0,0,0.5);
+padding-top:25px;
+}
+
+.sidebar a{
+display:block;
+color:white;
+padding:12px 20px;
+text-decoration:none;
+border-radius:6px;
+margin:6px 10px;
+transition:0.3s;
+}
+
+.sidebar a:hover{
+background:rgba(255,255,255,0.2);
+transform:translateX(8px);
+}
+
+.sidebar a.active{
+background:rgba(255,255,255,0.2);
+border-left:4px solid #38BDF8;
+}
+
+.card{
+border:none;
+border-radius:15px;
+box-shadow:0 10px 25px rgba(0,0,0,0.3);
+color:black;
+height:100%;
+}
+
+.profile-img{
+width:120px;
+height:120px;
+border-radius:50%;
+object-fit:cover;
+border:4px solid #0ea5e9;
+}
+
+#particles-js{
+position:absolute;
+top:0;
+left:0;
+width:100%;
+height:100%;
+z-index:0;
+}
+
+.main-area{
+position:relative;
+z-index:1;
+}
+
+.footer{
+text-align:center;
+padding:10px;
+background:rgba(0,0,0,0.6);
+color:white;
+position:fixed;
+bottom:0;
+width:100%;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<nav class="navbar navbar-dark">
+
+<div class="container-fluid">
+
+<a class="navbar-brand d-flex align-items-center">
+
+<img src="{{ url_for('static', filename='media/logo.jpeg') }}" class="logo">
+
+<b>SSB Training And Placement Pvt Ltd</b>
+
+</a>
+
+<a href="/dashboard" class="btn btn-light">Back</a>
+
+</div>
+
+</nav>
+
+<div class="container-fluid">
+
+<div class="row">
+
+<div class="col-md-2 sidebar">
+
+<h5 class="text-center">👨‍💻 Candidate Panel</h5>
+
+<a href="/dashboard">🏠 Dashboard</a>
+<a href="/coding_editor">💻 Coding Assessment</a>
+<a href="/video_interview">🤖 AI Interview</a>
+<a href="/performance">📊 Performance</a>
+<a class="active" href="/profile">👤 Profile</a>
+<a href="/">🚪 Logout</a>
+
+</div>
+
+<div class="col-md-10 p-4 main-area">
+
+<div id="particles-js"></div>
+
+<h2 class="mb-4">👤 Candidate Profile</h2><br>
+
+<form method="POST" action="/save_profile" enctype="multipart/form-data">
+
+<input type="hidden" name="user_id" value="{{ profile.user_id }}">
+
+<div class="row align-items-stretch">
+
+<div class="col-md-4">
+
+<div class="card text-center p-4">
+
+<img src="{{ url_for('static', filename='uploads/' + profile.photo) if profile and profile.photo else url_for('static', filename='uploads/profile.png') }}" class="profile-img mb-3">
+
+<input type="file" name="photo" class="form-control mb-2">
+
+<h4>{{ profile.name if profile else '' }}</h4>
+
+<input type="file" name="resume" class="form-control mb-3">
+
+<button type="submit" class="btn btn-primary">
+Upload Resume
+</button>
+
+</div>
+
+</div>
+
+<div class="col-md-8">
+
+<div class="card p-4">
+
+<h5>Profile Information</h5>
+
+<div class="row">
+
+<div class="col-md-6 mb-3">
+<label>Name</label>
+<input name="name" class="form-control" placeholder="Enter your name" value="{{ profile.name if profile else '' }}">
+</div>
+
+<div class="col-md-6 mb-3">
+<label>Email</label>
+<input name="email" class="form-control" value="{{ profile.email if profile else '' }}" readonly>
+</div>
+
+<div class="col-md-6 mb-3">
+<label>Phone</label>
+<input name="phone" class="form-control" placeholder="Enter phone number" value="{{ profile.phone if profile else '' }}">
+</div>
+
+<div class="col-md-6 mb-3">
+<label>College</label>
+<input name="college" class="form-control" placeholder="Enter college name" value="{{ profile.college if profile else '' }}">
+</div>
+
+<div class="col-md-12 mb-3">
+<label>Skills</label>
+<input name="skills" class="form-control" placeholder="Example: Python, Java, ML" value="{{ profile.skills if profile else '' }}">
+</div>
+
+</div>
+
+<button type="submit" class="btn btn-success">
+Save Changes
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+</form>
+
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+particlesJS("particles-js",{
+
+particles:{
+number:{value:70},
+color:{value:"#ffffff"},
+shape:{type:"circle"},
+opacity:{value:0.4},
+size:{value:3},
+line_linked:{
+enable:true,
+distance:150,
+color:"#ffffff",
+opacity:0.3,
+width:1
+},
+move:{
+enable:true,
+speed:2
+}
+}
+
+});
+
+</script>
+
+<footer class="footer">
+© 2026 SSB Training And Placement Pvt Ltd
+</footer>
+
+</body>
+</html>
