@@ -67,14 +67,10 @@ def video_interview():
 def results():
     return "Interview Results Page"
 
-
 @app.route("/performance")
 def performance():
 
     email = session.get("email")
-
-    if not email:
-        return redirect("/")
 
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
@@ -83,20 +79,21 @@ def performance():
     user = cur.fetchone()
 
     if not user:
-        conn.close()
-        return redirect("/dashboard")
+        return "User not found"
 
     user_id = user[0]
 
     # Coding score
-    cur.execute("SELECT score FROM submissions WHERE user_id=?", (user_id,))
+    cur.execute("SELECT score FROM coding_results WHERE candidate_id=?", (user_id,))
     coding = cur.fetchone()
-    coding_score = coding[0] if coding else 0
 
-    # AI interview score
+    # Interview score
     cur.execute("SELECT score FROM interviews WHERE candidate_id=?", (user_id,))
     interview = cur.fetchone()
-    interview_score = interview[0] if interview else 0
+
+    # Convert None → 0
+    coding_score = coding[0] if coding and coding[0] is not None else 0
+    interview_score = interview[0] if interview and interview[0] is not None else 0
 
     overall = int((coding_score + interview_score) / 2)
 
@@ -108,8 +105,6 @@ def performance():
         interview_score=interview_score,
         overall=overall
     )
-
-
 # ===============================
 # ADMIN PANEL ROUTES
 # ===============================
@@ -659,6 +654,7 @@ def check_interview():
 
     return jsonify({"completed": True if interview else False})
 #  sumbit_interview
+
 @app.route("/submit_interview", methods=["POST"])
 def submit_interview():
 
@@ -673,17 +669,19 @@ def submit_interview():
     if user:
         user_id = user[0]
 
+        # Example communication score
+        communication_score = 85
+
         cur.execute("""
-        INSERT INTO interviews (candidate_id, status)
-        VALUES (?, ?)
-        """, (user_id, "completed"))
+        INSERT INTO interviews (candidate_id, status, score)
+        VALUES (?, ?, ?)
+        """, (user_id, "completed", communication_score))
 
         conn.commit()
 
     conn.close()
 
     return {"status": "ok"}
-
 
 
 if __name__ == "__main__":
