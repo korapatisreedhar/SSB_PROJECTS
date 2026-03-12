@@ -3,6 +3,10 @@ from flask_jwt_extended import JWTManager
 from auth import register_user, login_user
 from database import init_db
 import sqlite3
+import random
+import subprocess
+import tempfile
+import sys
 
 app = Flask(__name__)
 
@@ -43,19 +47,97 @@ def login():
 # DASHBOARD PAGE
 @app.route("/dashboard")
 def dashboard():
-    return render_template("dashboard.html")
+
+    if "email" not in session:
+        return redirect("/")
+
+    email = session.get("email")
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute("SELECT name FROM users WHERE email=?", (email,))
+    user = cur.fetchone()
+
+    conn.close()
+
+    name = user[0] if user else "Candidate"
+
+    return render_template("dashboard.html", name=name)
+
+
+@app.route("/start_coding_test")
+def start_coding_test():
+
+    if "email" not in session:
+        return redirect("/")
+    
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute("SELECT id FROM coding_problems")
+    problems = cur.fetchall()
+
+    conn.close()
+
+    if len(problems) < 2:
+        return "Not enough coding questions added by admin."
+
+    selected = random.sample(problems, 2)
+
+    session["coding_questions"] = [p[0] for p in selected]
+
+    return redirect(f"/coding_editor/{selected[0][0]}")
 
 
 # interview
-@app.route("/coding_editor")
-def coding_editor():
-    return render_template("coding_editor.html")
+@app.route("/coding_editor/<int:problem_id>")
+def coding_editor(problem_id):
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT title, difficulty, description
+        FROM coding_problems
+        WHERE id=?
+    """, (problem_id,))
+
+    row = cur.fetchone()
+    conn.close()
+
+    problem = {
+        "title": row[0],
+        "difficulty": row[1],
+        "description": row[2]
+    }
+
+    return render_template(
+    "coding_editor.html",
+    problem=problem,
+    problem_id=problem_id
+)
 
 
-# Coding Assessment Page
-@app.route("/coding_assessment")
-def coding_assessment():
-    return render_template("coding_editor.html")
+@app.route("/next_question")
+def next_question():
+
+    questions = session.get("coding_questions")
+
+    if not questions:
+        return redirect("/dashboard")
+
+    questions.pop(0)
+
+    if len(questions) == 0:
+        return redirect("/dashboard")
+
+    session["coding_questions"] = questions
+
+    return redirect(f"/coding_editor/{questions[0]}")
+
+
 
 
 @app.route("/video_interview")
@@ -75,6 +157,7 @@ def performance():
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
+    # get user id
     cur.execute("SELECT id FROM users WHERE email=?", (email,))
     user = cur.fetchone()
 
@@ -83,17 +166,16 @@ def performance():
 
     user_id = user[0]
 
-    # Coding score
-    cur.execute("SELECT score FROM coding_results WHERE candidate_id=?", (user_id,))
+    # coding score
+    cur.execute("SELECT AVG(score) FROM submissions WHERE user_id=?", (user_id,))
     coding = cur.fetchone()
 
-    # Interview score
-    cur.execute("SELECT score FROM interviews WHERE candidate_id=?", (user_id,))
+    # interview score
+    cur.execute("SELECT AVG(score) FROM interviews WHERE candidate_id=?", (user_id,))
     interview = cur.fetchone()
 
-    # Convert None → 0
-    coding_score = coding[0] if coding and coding[0] is not None else 0
-    interview_score = interview[0] if interview and interview[0] is not None else 0
+    coding_score = coding[0] if coding and coding[0] else 0
+    interview_score = interview[0] if interview and interview[0] else 0
 
     overall = int((coding_score + interview_score) / 2)
 
@@ -521,7 +603,25 @@ def add_coding_problem():
     conn.commit()
     conn.close()
 
-    return redirect("/admin_coding_judge")
+    return redirect("/add_coding_problem_page?success=1")
+
+
+@app.route("/delete_coding_problem/<int:problem_id>")
+def delete_coding_problem(problem_id):
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    # delete testcases
+    cur.execute("DELETE FROM testcases WHERE problem_id=?", (problem_id,))
+
+    # delete problem
+    cur.execute("DELETE FROM coding_problems WHERE id=?", (problem_id,))
+
+    conn.commit()
+    conn.close()
+
+    return redirect("/view_coding_questions")
 
 
 @app.route("/view_questions")
@@ -543,6 +643,87 @@ def view_coding_questions():
     return render_template("view_coding_questions.html", problems=problems)
 
 
+
+# Open Add MCQ Page
+@app.route("/add_mcq_page")
+def add_mcq_page():
+    return render_template("add_mcq.html")
+
+
+# Save MCQ Question
+from flask import flash, redirect, url_for
+
+@app.route('/add_mcq', methods=['GET', 'POST'])
+def add_mcq():
+    if request.method == 'POST':
+        question_number = request.form['question_number']
+        question = request.form['question']
+        option_a = request.form['option_a']
+        option_b = request.form['option_b']
+        option_c = request.form['option_c']
+        option_d = request.form['option_d']
+        answer = request.form['answer']
+
+        conn = sqlite3.connect("database.db")
+        cursor = conn.cursor()
+
+        cursor.execute("""
+        INSERT INTO mcq_questions
+        (question_number, question, option_a, option_b, option_c, option_d, answer)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (question_number, question, option_a, option_b, option_c, option_d, answer))
+
+        conn.commit()
+        conn.close()
+
+        flash("MCQ Question added successfully!", "success")
+
+        return redirect(url_for('add_mcq'))  # stay on same page
+
+    return render_template("add_mcq.html")
+# @app.route('/view_mcq')
+# def view_mcq():
+
+#     conn = sqlite3.connect('database.db')
+#     cursor = conn.cursor()
+
+#     cursor.execute("SELECT * FROM mcq_questions")
+#     mcqs = cursor.fetchall()
+
+#     conn.close()
+
+#     return render_template("view_mcq_questions.html", mcqs=mcqs)
+@app.route("/view_mcq_questions")
+def view_mcq_questions():
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT id,question_number,question,
+               option_a,option_b,option_c,option_d,answer
+        FROM mcq_questions
+    """)
+
+    questions = cur.fetchall()
+
+    conn.close()
+
+    return render_template("view_mcq_questions.html", questions=questions)
+
+
+@app.route("/delete_mcq/<int:mcq_id>")
+def delete_mcq(mcq_id):
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute("DELETE FROM mcq_questions WHERE id=?", (mcq_id,))
+
+    conn.commit()
+    conn.close()
+
+    return redirect("/view_mcq_questions")
 
 
 
@@ -682,6 +863,90 @@ def submit_interview():
     conn.close()
 
     return {"status": "ok"}
+
+
+
+
+# import subprocess
+# import tempfile
+# import sys
+# import subprocess
+# import tempfile
+# import sys
+
+@app.route("/run_code", methods=["POST"])
+def run_code():
+
+    data = request.json
+    code = data.get("code")
+    problem_id = data.get("problem_id")
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute("SELECT input, output FROM testcases WHERE problem_id=?", (problem_id,))
+    testcases = cur.fetchall()
+
+    conn.close()
+
+    results = []
+
+    for t in testcases:
+
+        user_input = t[0]
+        expected_output = t[1]
+
+        try:
+
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".py", mode="w") as f:
+                f.write(code)
+                filename = f.name
+
+            result = subprocess.run(
+                [sys.executable, filename],
+                input=user_input,
+                text=True,
+                capture_output=True,
+                timeout=5
+            )
+
+            if result.stderr:
+                results.append({
+                    "input": user_input,
+                    "error": result.stderr
+                })
+
+            else:
+                results.append({
+                    "input": user_input,
+                    "expected": expected_output,
+                    "output": result.stdout.strip()
+                })
+
+        except Exception as e:
+            results.append({
+                "error": str(e)
+            })
+
+    return jsonify(results)
+
+
+
+@app.route("/check_ai_unlock")
+def check_ai_unlock():
+
+    email=session.get("email")
+
+    conn=sqlite3.connect("database.db")
+    cur=conn.cursor()
+
+    cur.execute("SELECT score FROM coding_results WHERE email=?",(email,))
+    data=cur.fetchone()
+
+    if data and data[0] >= 75:
+        return jsonify({"allowed":True})
+
+    return jsonify({"allowed":False})
 
 
 if __name__ == "__main__":

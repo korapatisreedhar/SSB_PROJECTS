@@ -8,13 +8,14 @@
 <title>AI Interview</title>
 
 <link rel="icon" href="{{ url_for('static', filename='media/logo.jpeg') }}">
-
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
 <script src="https://cdn.jsdelivr.net/npm/particles.js"></script>
 
 <style>
+
 body{
 margin:0;
 font-family:'Segoe UI',sans-serif;
@@ -65,6 +66,7 @@ width:100%;
 border-radius:10px;
 background:black;
 }
+
 </style>
 </head>
 
@@ -112,10 +114,14 @@ background:black;
 
 <p id="status" style="color:green;font-weight:bold;"></p>
 
-<p>⏱ Time Left: <span id="time">60</span>s</p>
+<p>⏱ Time Left: <span id="time">30:00</span></p>
 
 <button id="startBtn" class="btn btn-primary" onclick="toggleInterview()">
 Start Interview
+</button>
+
+<button id="nextBtn" class="btn btn-success mt-2" onclick="nextQuestion()" style="display:none;">
+Next Question
 </button>
 
 <hr>
@@ -126,70 +132,227 @@ Start Interview
 <p id="warning" style="color:red;font-weight:bold;"></p>
 
 </div>
+</div>
+</div>
+</div>
+</div>
+</div>
 
-</div>
-</div>
-</div>
-</div>
-</div>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
 
 <script>
 
+let objectDetectInterval;
+let model;
+let stream;
+let recorder;
+let chunks=[];
+let recognition;
+
+/* Disable right-click, copy, paste */
+document.addEventListener("contextmenu", e => e.preventDefault());
+document.addEventListener("copy", e => e.preventDefault());
+document.addEventListener("paste", e => e.preventDefault());
+let running=false;
+let index=0;
+let answers=[];
+let currentAnswer="";
+
 /* ======================
-INTERVIEW ATTEMPT CHECK
+AI INTERVIEW LOCK CHECK
 ====================== */
 
-fetch("/check_interview")
+fetch("/check_ai_unlock")
 .then(res=>res.json())
 .then(data=>{
 
-if(data.completed){
+if(!data.allowed){
 
-document.getElementById("question").innerText="Interview already completed";
-document.getElementById("status").innerText="You already attempted this interview";
-document.getElementById("startBtn").disabled=true;
+document.getElementById("status").innerText =
+"AI Interview Locked. Score 75+ required in Coding Assessment.";
+
+document.getElementById("startBtn").disabled = true;
 
 }
 
 });
 
-/* ======================
-CAMERA PERMISSION
-====================== */
+let faceCheckInterval;
+let cheatingCount=0;
+let cheatingDetected=false;
+let silenceTimer;
+let timer;
+let time=1800;
 
-let stream;
+/* LOAD MODELS */
+
+async function loadModel(){
+model = await cocoSsd.load();
+}
+
+loadModel();
+
+let faceModel;
+
+async function loadFaceModel(){
+faceModel = await blazeface.load();
+}
+
+loadFaceModel();
+
+/* OBJECT DETECTION */
+
+async function detectObjects(){
+
+if(!running || !model) return;
+
+const video = document.getElementById("video");
+
+if(video.readyState!==4) return;
+
+let predictions=[];
+
+try{
+predictions = await model.detect(video);
+}catch(e){
+return;
+}
+
+let personCount = 0;
+
+predictions.forEach(p=>{
+
+if(p.class === "person"){
+personCount++;
+}
+
+if(p.class === "cell phone"){
+
+alert("⚠ Mobile phone detected!");
+
+cheatingDetected = true;
+
+endInterview();
+
+}
+
+});
+
+if(personCount >= 2){
+
+alert("⚠ Another person detected behind you.");
+
+cheatingDetected = true;
+
+endInterview();
+
+}
+
+}
+
+/* FACE MONITORING */
+
+async function monitorFace(){
+
+if(!running || !faceModel) return;
+
+const video = document.getElementById("video");
+
+if(video.readyState !== 4) return;
+
+const predictions = await faceModel.estimateFaces(video,{
+returnTensors:false,
+flipHorizontal:false
+});
+
+if(predictions.length === 0){
+
+alert("⚠ No face detected.");
+
+cheatingDetected = true;
+endInterview();
+return;
+
+}
+
+if(predictions.length >= 2){
+
+alert("⚠ Multiple faces detected.");
+
+cheatingDetected = true;
+endInterview();
+return;
+
+}
+
+/* LOOKING LEFT RIGHT */
+
+const face = predictions[0];
+
+const leftEye = face.landmarks[0];
+const rightEye = face.landmarks[1];
+const nose = face.landmarks[2];
+
+const eyeCenter = (leftEye[0] + rightEye[0]) / 2;
+
+const deviation = Math.abs(nose[0] - eyeCenter);
+
+if(deviation > 25){
+
+cheatingCount++;
+
+document.getElementById("status").innerText =
+"⚠ Please look straight at the camera (" + cheatingCount + "/2)";
+
+if(cheatingCount >= 2){
+
+alert("⚠ Looking away repeatedly.");
+
+cheatingDetected = true;
+endInterview();
+
+}
+
+}else{
+
+cheatingCount = 0;
+
+document.getElementById("status").innerText =
+"Interview Running Normally";
+
+}
+
+}
+
+/* CAMERA */
 
 async function startCamera(){
-
-document.getElementById("warning").innerText =
-"Please allow Camera and Microphone permission to continue.";
 
 try{
 
 stream = await navigator.mediaDevices.getUserMedia({
-video:true,
+video:{
+width:640,
+height:480,
+facingMode:"user"
+},
 audio:true
 });
 
-document.getElementById("video").srcObject = stream;
+document.getElementById("video").srcObject=stream;
 
-document.getElementById("warning").innerText =
-"Camera and Microphone connected successfully.";
+stream.getVideoTracks()[0].onended=function(){
 
-stream.getVideoTracks()[0].onended = function(){
-
-document.getElementById("warning").innerText="⚠ Camera turned OFF";
-alert("Camera is turned OFF");
+alert("Camera turned OFF");
 endInterview();
 
 };
 
 }catch(err){
 
-document.getElementById("warning").innerText =
-"⚠ Camera & Microphone permission denied. Please allow permissions.";
-
-alert("Please allow Camera and Microphone permission to start interview");
+alert("Please allow camera permissions");
 
 }
 
@@ -197,68 +360,55 @@ alert("Please allow Camera and Microphone permission to start interview");
 
 startCamera();
 
-/* ======================
-QUESTIONS
-====================== */
+/* QUESTIONS */
 
 const questions=[
 "Tell me about yourself",
-"What are your strengths",
+"What are your strengths and weaknesses",
 "Explain a challenging project you worked on",
-"Why should we select you for this internship"
+"Where do you see yourself in five years",
+"Why should we hire you"
 ];
 
-let index=0;
-let answers=[];
-let currentAnswer="";
-
-/* ======================
-FACE CHECK
-====================== */
-
-async function checkFace(){
-
-if(!('FaceDetector' in window)) return true;
-
-const detector = new FaceDetector();
-const faces = await detector.detect(document.getElementById("video"));
-
-if(faces.length===0){
-alert("⚠ No face detected. Please sit in front of camera.");
-return false;
-}
-
-if(faces.length>1){
-alert("⚠ Multiple faces detected.");
-return false;
-}
-
-return true;
-
-}
-
-/* ======================
-SPEECH
-====================== */
-
-let recognition;
+/* SPEECH */
 
 function startSpeech(){
 
-recognition=new(window.SpeechRecognition||window.webkitSpeechRecognition)();
+const SpeechRecognition =
+window.SpeechRecognition || window.webkitSpeechRecognition;
+
+recognition=new SpeechRecognition();
 recognition.continuous=true;
 
 recognition.onresult=function(event){
 
-let transcript=event.results[event.results.length-1][0].transcript;
-currentAnswer+=transcript+" ";
+let transcript="";
+
+for(let i=event.resultIndex;i<event.results.length;i++){
+
+if(event.results[i].isFinal){
+transcript+=event.results[i][0].transcript+" ";
+}
+
+}
+
+currentAnswer+=transcript;
+
 document.getElementById("answer").innerText=currentAnswer;
 
+};
+
+recognition.onend=function(){
+if(running){
+recognition.start();
+}
 };
 
 recognition.start();
 
 }
+
+/* SPEAK */
 
 function speak(text){
 
@@ -267,51 +417,82 @@ if(recognition) recognition.stop();
 let speech=new SpeechSynthesisUtterance(text);
 
 speech.onend=function(){
-setTimeout(()=>{ if(recognition) recognition.start(); },500);
+if(recognition) recognition.start();
 };
 
 window.speechSynthesis.speak(speech);
 
 }
 
-/* ======================
-ASK QUESTION
-====================== */
+/* QUESTIONS */
 
 function askQuestion(){
 
-if(currentAnswer!=""){
-answers.push(currentAnswer);
-currentAnswer="";
-document.getElementById("answer").innerText="";
+if(currentAnswer.trim()!==""){
+answers.push(currentAnswer.trim());
 }
+
+currentAnswer="";
+
+document.getElementById("answer").innerText="";
 
 if(index<questions.length){
 
 let q=questions[index];
+
 document.getElementById("question").innerText=q;
+
+document.getElementById("nextBtn").style.display="inline-block";
+
 speak(q);
+
 index++;
 
+clearTimeout(silenceTimer);
+
+silenceTimer=setTimeout(()=>{
+
+if(currentAnswer.trim()===""){
+nextQuestion();
+}
+
+},10000);
+
 }else{
+
 endInterview();
-}
 
 }
 
-/* ======================
-TIMER
-====================== */
+}
 
-let time=60;
-let timer;
+function nextQuestion(){
+
+document.getElementById("nextBtn").style.display="none";
+
+setTimeout(()=>{
+
+speak("Moving to next question");
+
+askQuestion();
+
+},2000);
+
+}
+
+/* TIMER */
 
 function startTimer(){
 
 timer=setInterval(()=>{
 
 time--;
-document.getElementById("time").innerText=time;
+
+let minutes=Math.floor(time/60);
+let seconds=time%60;
+
+document.getElementById("time").innerText=
+minutes+":"+(seconds<10?"0"+seconds:seconds);
 
 if(time<=0){
 endInterview();
@@ -321,17 +502,16 @@ endInterview();
 
 }
 
-/* ======================
-RECORDING
-====================== */
-
-let recorder;
-let chunks=[];
+/* RECORDING */
 
 function startRecording(){
 
+chunks=[];
+
 recorder=new MediaRecorder(stream);
+
 recorder.ondataavailable=e=>chunks.push(e.data);
+
 recorder.start();
 
 }
@@ -351,32 +531,18 @@ fetch("/save_interview_video",{method:"POST",body:fd});
 
 }
 
-/* ======================
-INTERVIEW CONTROL
-====================== */
-
-let running=false;
+/* START INTERVIEW */
 
 async function startInterview(){
 
-if(!stream){
-alert("Please allow camera access before starting interview");
-return;
-}
-
-let tracks = stream.getVideoTracks();
-
-if(tracks.length===0 || tracks[0].readyState!=="live"){
-alert("Camera must be ON to start interview");
-return;
-}
-
-let ok = await checkFace();
-if(!ok) return;
+if(running) return;
 
 enterFullScreen();
 
 running=true;
+
+answers=[];
+index=0;
 
 document.getElementById("status").innerText="Interview Started";
 
@@ -387,7 +553,15 @@ askQuestion();
 startTimer();
 startRecording();
 
+objectDetectInterval=setInterval(detectObjects,1000);
+
+setTimeout(()=>{
+faceCheckInterval = setInterval(monitorFace,2000);
+},3000);
+
 }
+
+/* TOGGLE */
 
 function toggleInterview(){
 
@@ -399,21 +573,70 @@ endInterview();
 
 }
 
+/* TAB SWITCH */
+
+document.addEventListener("visibilitychange",function(){
+
+if(document.hidden && running){
+
+alert("Tab switching detected");
+
+cheatingDetected=true;
+
+endInterview();
+
+}
+
+});
+
+/* FULLSCREEN */
+
+function enterFullScreen(){
+
+let elem=document.documentElement;
+
+if(elem.requestFullscreen){
+elem.requestFullscreen();
+}
+
+}
+
+/* END INTERVIEW */
+
 function endInterview(){
 
 running=false;
 
 clearInterval(timer);
+clearInterval(objectDetectInterval);
+clearInterval(faceCheckInterval);
+clearTimeout(silenceTimer);
 
 document.getElementById("status").innerText="Interview Completed";
-
 document.getElementById("startBtn").disabled=true;
+document.getElementById("nextBtn").style.display="none";
+
+if(recognition){
+recognition.stop();
+}
+
+if(currentAnswer.trim()!==""){
+answers.push(currentAnswer.trim());
+}
 
 stopRecording();
 
-/* SAVE INTERVIEW STATUS */
+if(!cheatingDetected){
 
-fetch("/submit_interview",{method:"POST"});
+fetch("/submit_interview",{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({answers:answers})
+});
+
+}
 
 if(stream){
 stream.getTracks().forEach(track=>track.stop());
@@ -425,22 +648,15 @@ if(document.fullscreenElement){
 document.exitFullscreen();
 }
 
-setTimeout(function(){
-window.location.replace("/dashboard");
+setTimeout(()=>{
+window.location.href="/dashboard";
 },2500);
-
-}
-function enterFullScreen(){
-
-let elem=document.documentElement;
-
-if(elem.requestFullscreen){
-elem.requestFullscreen();
-}
 
 }
 
 </script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>
 </html>
