@@ -120,6 +120,82 @@ def coding_editor(problem_id):
 )
 
 
+<<<<<<< HEAD
+=======
+
+import subprocess
+import tempfile
+import sys
+
+@app.route("/submit_code", methods=["POST"])
+def submit_code():
+
+    data = request.json
+    code = data.get("code")
+    problem_id = data.get("problem_id")
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute("SELECT input, output FROM testcases WHERE problem_id=?", (problem_id,))
+    testcases = cur.fetchall()
+
+    results = []
+    passed = True
+
+    for t in testcases:
+
+        user_input = t[0]
+        expected_output = t[1].strip()
+
+        try:
+
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".py", mode="w") as f:
+                f.write(code)
+                filename = f.name
+
+            result = subprocess.run(
+                [sys.executable, filename],
+                input=user_input,
+                text=True,
+                capture_output=True,
+                timeout=5
+            )
+
+            output = result.stdout.strip()
+
+            status = "PASS" if output == expected_output else "FAIL"
+
+            if status == "FAIL":
+                passed = False
+
+            results.append({
+                "input": user_input,
+                "expected": expected_output,
+                "output": output,
+                "status": status
+            })
+
+        except Exception as e:
+
+            passed = False
+
+            results.append({
+                "input": user_input,
+                "expected": expected_output,
+                "output": str(e),
+                "status": "FAIL"
+            })
+
+    conn.close()
+
+    return jsonify({
+        "results": results,
+        "all_passed": passed
+    })
+
+
+>>>>>>> 89945db30aa4550c322b9041cd3ce33348633b33
 @app.route("/next_question")
 def next_question():
 
@@ -866,6 +942,7 @@ def submit_interview():
 
 
 
+<<<<<<< HEAD
 
 # import subprocess
 # import tempfile
@@ -874,6 +951,8 @@ def submit_interview():
 # import tempfile
 # import sys
 
+=======
+>>>>>>> 89945db30aa4550c322b9041cd3ce33348633b33
 @app.route("/run_code", methods=["POST"])
 def run_code():
 
@@ -889,6 +968,7 @@ def run_code():
 
     conn.close()
 
+<<<<<<< HEAD
     results = []
 
     for t in testcases:
@@ -947,6 +1027,50 @@ def check_ai_unlock():
         return jsonify({"allowed":True})
 
     return jsonify({"allowed":False})
+=======
+    # only run first testcase for RUN button
+    testcase = testcases[0]
+
+    inp = testcase[0]
+    expected = testcase[1].strip()
+
+    try:
+
+        # create temporary python file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".py", mode="w") as f:
+            f.write(code)
+            filename = f.name
+
+        process = subprocess.run(
+            [sys.executable, filename],
+            input=inp,
+            text=True,
+            capture_output=True,
+            timeout=5
+        )
+
+        # if code error
+        if process.stderr:
+            return jsonify({
+                "error": process.stderr
+            })
+
+        output = process.stdout.strip()
+
+        return jsonify({
+            "result": {
+                "input": inp,
+                "expected": expected,
+                "output": output
+            }
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "error": str(e)
+        })
+>>>>>>> 89945db30aa4550c322b9041cd3ce33348633b33
 
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@ import bcrypt
 
 def init_db():
     conn = sqlite3.connect("database.db")
+    conn.execute("PRAGMA foreign_keys = ON")
     cur = conn.cursor()
 
     # USERS TABLE
@@ -26,30 +27,30 @@ def init_db():
         feedback TEXT,
         recording TEXT,
         status TEXT DEFAULT 'Pending',
-        FOREIGN KEY(candidate_id) REFERENCES users(id)
+        FOREIGN KEY(candidate_id) REFERENCES users(id) ON DELETE CASCADE
     )
     """)
 
-    # PROBLEMS TABLE
+    # CODING PROBLEMS TABLE
     cur.execute("""
     CREATE TABLE IF NOT EXISTS coding_problems(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    difficulty TEXT,
-    description TEXT NOT NULL
-)
-""")
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        difficulty TEXT,
+        description TEXT NOT NULL
+    )
+    """)
 
     # TEST CASES TABLE
     cur.execute("""
-CREATE TABLE IF NOT EXISTS testcases(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    problem_id INTEGER,
-    input TEXT,
-    output TEXT,
-    FOREIGN KEY(problem_id) REFERENCES coding_problems(id)
-)
-""")
+    CREATE TABLE IF NOT EXISTS testcases(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        problem_id INTEGER,
+        input TEXT,
+        output TEXT,
+        FOREIGN KEY(problem_id) REFERENCES coding_problems(id) ON DELETE CASCADE
+    )
+    """)
 
     # SUBMISSIONS TABLE
     cur.execute("""
@@ -59,11 +60,27 @@ CREATE TABLE IF NOT EXISTS testcases(
         problem_id INTEGER,
         code TEXT,
         result TEXT,
-        score INTEGER
+        score INTEGER,
+        FOREIGN KEY(user_id) REFERENCES users(id),
+        FOREIGN KEY(problem_id) REFERENCES coding_problems(id)
     )
     """)
 
-    # PROFILES TABLE (correct one)
+    # MCQ QUESTIONS TABLE
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS mcq_questions(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        question_number INTEGER,
+        question TEXT NOT NULL,
+        option_a TEXT NOT NULL,
+        option_b TEXT NOT NULL,
+        option_c TEXT NOT NULL,
+        option_d TEXT NOT NULL,
+        answer TEXT NOT NULL
+    )
+    """)
+
+    # PROFILES TABLE
     cur.execute("""
     CREATE TABLE IF NOT EXISTS profiles(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -72,26 +89,22 @@ CREATE TABLE IF NOT EXISTS testcases(
         college TEXT,
         skills TEXT,
         photo TEXT,
-        resume TEXT
+        resume TEXT,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )
     """)
 
-
-
-
-    # CHECK IF ADMIN EXISTS
-    cur.execute("SELECT id FROM users WHERE email=?", ("admin@gmail.com",))
+    # CREATE DEFAULT ADMIN
+    cur.execute("SELECT id FROM users WHERE email = ?", ("admin@gmail.com",))
     admin = cur.fetchone()
 
-    if not admin:
-        hashed = bcrypt.hashpw("admin123".encode(), bcrypt.gensalt())
+    if admin is None:
+        hashed_password = bcrypt.hashpw("admin123".encode(), bcrypt.gensalt())
 
         cur.execute("""
         INSERT INTO users (name, email, password, role)
         VALUES (?, ?, ?, ?)
-        """, ("Admin", "admin@gmail.com", hashed, "admin"))
+        """, ("Admin", "admin@gmail.com", hashed_password, "admin"))
 
     conn.commit()
     conn.close()
-
-    
