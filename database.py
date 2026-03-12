@@ -4,6 +4,7 @@ import bcrypt
 
 def init_db():
     conn = sqlite3.connect("database.db")
+    conn.execute("PRAGMA foreign_keys = ON")
     cur = conn.cursor()
 
     # USERS TABLE
@@ -26,7 +27,7 @@ def init_db():
         feedback TEXT,
         recording TEXT,
         status TEXT DEFAULT 'Pending',
-        FOREIGN KEY(candidate_id) REFERENCES users(id)
+        FOREIGN KEY(candidate_id) REFERENCES users(id) ON DELETE CASCADE
     )
     """)
 
@@ -47,7 +48,7 @@ def init_db():
         problem_id INTEGER,
         input TEXT,
         output TEXT,
-        FOREIGN KEY(problem_id) REFERENCES coding_problems(id)
+        FOREIGN KEY(problem_id) REFERENCES coding_problems(id) ON DELETE CASCADE
     )
     """)
 
@@ -59,7 +60,9 @@ def init_db():
         problem_id INTEGER,
         code TEXT,
         result TEXT,
-        score INTEGER
+        score INTEGER,
+        FOREIGN KEY(user_id) REFERENCES users(id),
+        FOREIGN KEY(problem_id) REFERENCES coding_problems(id)
     )
     """)
 
@@ -68,12 +71,12 @@ def init_db():
     CREATE TABLE IF NOT EXISTS mcq_questions(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         question_number INTEGER,
-        question TEXT,
-        option_a TEXT,
-        option_b TEXT,
-        option_c TEXT,
-        option_d TEXT,
-        answer TEXT
+        question TEXT NOT NULL,
+        option_a TEXT NOT NULL,
+        option_b TEXT NOT NULL,
+        option_c TEXT NOT NULL,
+        option_d TEXT NOT NULL,
+        answer TEXT NOT NULL
     )
     """)
 
@@ -86,21 +89,22 @@ def init_db():
         college TEXT,
         skills TEXT,
         photo TEXT,
-        resume TEXT
+        resume TEXT,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )
     """)
 
     # CREATE DEFAULT ADMIN
-    cur.execute("SELECT id FROM users WHERE email=?", ("admin@gmail.com",))
+    cur.execute("SELECT id FROM users WHERE email = ?", ("admin@gmail.com",))
     admin = cur.fetchone()
 
-    if not admin:
-        hashed = bcrypt.hashpw("admin123".encode(), bcrypt.gensalt())
+    if admin is None:
+        hashed_password = bcrypt.hashpw("admin123".encode(), bcrypt.gensalt())
 
         cur.execute("""
         INSERT INTO users (name, email, password, role)
         VALUES (?, ?, ?, ?)
-        """, ("Admin", "admin@gmail.com", hashed, "admin"))
+        """, ("Admin", "admin@gmail.com", hashed_password, "admin"))
 
     conn.commit()
     conn.close()

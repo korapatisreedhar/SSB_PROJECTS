@@ -13,41 +13,53 @@
 
 <div class="card p-4 shadow">
 
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+  {% for category, message in messages %}
+    <div class="alert alert-success">
+        {{ message }}
+    </div>
+  {% endfor %}
+{% endif %}
+{% endwith %}
+
 <h3>Add MCQ Question</h3>
+
 <form action="/add_mcq" method="POST">
 
 <div class="mb-3">
 <label>Question Number</label>
-<input type="number" name="question_number" class="form-control">
+<input type="number" name="question_number" class="form-control" required>
 </div>
 
 <div class="mb-3">
 <label>Question</label>
-<textarea name="question" class="form-control"></textarea>
+<textarea name="question" class="form-control" required></textarea>
 </div>
+
 <div class="mb-2">
 <label>Option A</label>
-<input type="text" name="option_a" class="form-control">
+<input type="text" name="option_a" class="form-control" required>
 </div>
 
 <div class="mb-2">
 <label>Option B</label>
-<input type="text" name="option_b" class="form-control">
+<input type="text" name="option_b" class="form-control" required>
 </div>
 
 <div class="mb-2">
 <label>Option C</label>
-<input type="text" name="option_c" class="form-control">
+<input type="text" name="option_c" class="form-control" required>
 </div>
 
 <div class="mb-2">
 <label>Option D</label>
-<input type="text" name="option_d" class="form-control">
+<input type="text" name="option_d" class="form-control" required>
 </div>
 
 <div class="mb-3">
 <label>Correct Answer</label>
-<select name="answer" class="form-control">
+<select name="answer" class="form-control" required>
 <option value="A">A</option>
 <option value="B">B</option>
 <option value="C">C</option>

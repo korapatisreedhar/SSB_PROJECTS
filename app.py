@@ -521,7 +521,25 @@ def add_coding_problem():
     conn.commit()
     conn.close()
 
-    return redirect("/admin_coding_judge")
+    return redirect("/add_coding_problem_page?success=1")
+
+
+@app.route("/delete_coding_problem/<int:problem_id>")
+def delete_coding_problem(problem_id):
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    # delete testcases
+    cur.execute("DELETE FROM testcases WHERE problem_id=?", (problem_id,))
+
+    # delete problem
+    cur.execute("DELETE FROM coding_problems WHERE id=?", (problem_id,))
+
+    conn.commit()
+    conn.close()
+
+    return redirect("/view_coding_questions")
 
 
 @app.route("/view_questions")
@@ -551,31 +569,79 @@ def add_mcq_page():
 
 
 # Save MCQ Question
-@app.route("/add_mcq", methods=["POST"])
-def add_mcq():
+from flask import flash, redirect, url_for
 
-    question = request.form["question"]
-    option_a = request.form["option_a"]
-    option_b = request.form["option_b"]
-    option_c = request.form["option_c"]
-    option_d = request.form["option_d"]
-    answer = request.form["answer"]
+@app.route('/add_mcq', methods=['GET', 'POST'])
+def add_mcq():
+    if request.method == 'POST':
+        question_number = request.form['question_number']
+        question = request.form['question']
+        option_a = request.form['option_a']
+        option_b = request.form['option_b']
+        option_c = request.form['option_c']
+        option_d = request.form['option_d']
+        answer = request.form['answer']
+
+        conn = sqlite3.connect("database.db")
+        cursor = conn.cursor()
+
+        cursor.execute("""
+        INSERT INTO mcq_questions
+        (question_number, question, option_a, option_b, option_c, option_d, answer)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (question_number, question, option_a, option_b, option_c, option_d, answer))
+
+        conn.commit()
+        conn.close()
+
+        flash("MCQ Question added successfully!", "success")
+
+        return redirect(url_for('add_mcq'))  # stay on same page
+
+    return render_template("add_mcq.html")
+# @app.route('/view_mcq')
+# def view_mcq():
+
+#     conn = sqlite3.connect('database.db')
+#     cursor = conn.cursor()
+
+#     cursor.execute("SELECT * FROM mcq_questions")
+#     mcqs = cursor.fetchall()
+
+#     conn.close()
+
+#     return render_template("view_mcq_questions.html", mcqs=mcqs)
+@app.route("/view_mcq_questions")
+def view_mcq_questions():
 
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
     cur.execute("""
-        INSERT INTO mcq_questions
-        (question, option_a, option_b, option_c, option_d, answer)
-        VALUES (?,?,?,?,?,?)
-    """,(question, option_a, option_b, option_c, option_d, answer))
+        SELECT id,question_number,question,
+               option_a,option_b,option_c,option_d,answer
+        FROM mcq_questions
+    """)
+
+    questions = cur.fetchall()
+
+    conn.close()
+
+    return render_template("view_mcq_questions.html", questions=questions)
+
+
+@app.route("/delete_mcq/<int:mcq_id>")
+def delete_mcq(mcq_id):
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute("DELETE FROM mcq_questions WHERE id=?", (mcq_id,))
 
     conn.commit()
     conn.close()
 
-    return redirect("/admin_coding_judge")
-
-
+    return redirect("/view_mcq_questions")
 
 
 
