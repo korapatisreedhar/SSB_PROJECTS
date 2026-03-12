@@ -3,6 +3,10 @@ from flask_jwt_extended import JWTManager
 from auth import register_user, login_user
 from database import init_db
 import sqlite3
+import random
+import subprocess
+import tempfile
+import sys
 
 app = Flask(__name__)
 
@@ -43,19 +47,170 @@ def login():
 # DASHBOARD PAGE
 @app.route("/dashboard")
 def dashboard():
-    return render_template("dashboard.html")
+
+    if "email" not in session:
+        return redirect("/")
+
+    email = session.get("email")
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute("SELECT name FROM users WHERE email=?", (email,))
+    user = cur.fetchone()
+
+    conn.close()
+
+    name = user[0] if user else "Candidate"
+
+    return render_template("dashboard.html", name=name)
+
+
+@app.route("/start_coding_test")
+def start_coding_test():
+
+    if "email" not in session:
+        return redirect("/")
+    
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute("SELECT id FROM coding_problems")
+    problems = cur.fetchall()
+
+    conn.close()
+
+    if len(problems) < 2:
+        return "Not enough coding questions added by admin."
+
+    selected = random.sample(problems, 2)
+
+    session["coding_questions"] = [p[0] for p in selected]
+
+    return redirect(f"/coding_editor/{selected[0][0]}")
 
 
 # interview
-@app.route("/coding_editor")
-def coding_editor():
-    return render_template("coding_editor.html")
+@app.route("/coding_editor/<int:problem_id>")
+def coding_editor(problem_id):
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT title, difficulty, description
+        FROM coding_problems
+        WHERE id=?
+    """, (problem_id,))
+
+    row = cur.fetchone()
+    conn.close()
+
+    problem = {
+        "title": row[0],
+        "difficulty": row[1],
+        "description": row[2]
+    }
+
+    return render_template(
+    "coding_editor.html",
+    problem=problem,
+    problem_id=problem_id
+)
 
 
-# Coding Assessment Page
-@app.route("/coding_assessment")
-def coding_assessment():
-    return render_template("coding_editor.html")
+
+import subprocess
+import tempfile
+import sys
+
+@app.route("/submit_code", methods=["POST"])
+def submit_code():
+
+    data = request.json
+    code = data.get("code")
+    problem_id = data.get("problem_id")
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute("SELECT input, output FROM testcases WHERE problem_id=?", (problem_id,))
+    testcases = cur.fetchall()
+
+    results = []
+    passed = True
+
+    for t in testcases:
+
+        user_input = t[0]
+        expected_output = t[1].strip()
+
+        try:
+
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".py", mode="w") as f:
+                f.write(code)
+                filename = f.name
+
+            result = subprocess.run(
+                [sys.executable, filename],
+                input=user_input,
+                text=True,
+                capture_output=True,
+                timeout=5
+            )
+
+            output = result.stdout.strip()
+
+            status = "PASS" if output == expected_output else "FAIL"
+
+            if status == "FAIL":
+                passed = False
+
+            results.append({
+                "input": user_input,
+                "expected": expected_output,
+                "output": output,
+                "status": status
+            })
+
+        except Exception as e:
+
+            passed = False
+
+            results.append({
+                "input": user_input,
+                "expected": expected_output,
+                "output": str(e),
+                "status": "FAIL"
+            })
+
+    conn.close()
+
+    return jsonify({
+        "results": results,
+        "all_passed": passed
+    })
+
+
+@app.route("/next_question")
+def next_question():
+
+    questions = session.get("coding_questions")
+
+    if not questions:
+        return redirect("/dashboard")
+
+    questions.pop(0)
+
+    if len(questions) == 0:
+        return redirect("/dashboard")
+
+    session["coding_questions"] = questions
+
+    return redirect(f"/coding_editor/{questions[0]}")
+
+
 
 
 @app.route("/video_interview")
@@ -75,6 +230,7 @@ def performance():
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
+    # get user id
     cur.execute("SELECT id FROM users WHERE email=?", (email,))
     user = cur.fetchone()
 
@@ -83,17 +239,16 @@ def performance():
 
     user_id = user[0]
 
-    # Coding score
-    cur.execute("SELECT score FROM coding_results WHERE candidate_id=?", (user_id,))
+    # coding score
+    cur.execute("SELECT AVG(score) FROM submissions WHERE user_id=?", (user_id,))
     coding = cur.fetchone()
 
-    # Interview score
-    cur.execute("SELECT score FROM interviews WHERE candidate_id=?", (user_id,))
+    # interview score
+    cur.execute("SELECT AVG(score) FROM interviews WHERE candidate_id=?", (user_id,))
     interview = cur.fetchone()
 
-    # Convert None → 0
-    coding_score = coding[0] if coding and coding[0] is not None else 0
-    interview_score = interview[0] if interview and interview[0] is not None else 0
+    coding_score = coding[0] if coding and coding[0] else 0
+    interview_score = interview[0] if interview and interview[0] else 0
 
     overall = int((coding_score + interview_score) / 2)
 
@@ -781,6 +936,66 @@ def submit_interview():
     conn.close()
 
     return {"status": "ok"}
+
+
+
+@app.route("/run_code", methods=["POST"])
+def run_code():
+
+    data = request.json
+    code = data.get("code")
+    problem_id = data.get("problem_id")
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute("SELECT input, output FROM testcases WHERE problem_id=?", (problem_id,))
+    testcases = cur.fetchall()
+
+    conn.close()
+
+    # only run first testcase for RUN button
+    testcase = testcases[0]
+
+    inp = testcase[0]
+    expected = testcase[1].strip()
+
+    try:
+
+        # create temporary python file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".py", mode="w") as f:
+            f.write(code)
+            filename = f.name
+
+        process = subprocess.run(
+            [sys.executable, filename],
+            input=inp,
+            text=True,
+            capture_output=True,
+            timeout=5
+        )
+
+        # if code error
+        if process.stderr:
+            return jsonify({
+                "error": process.stderr
+            })
+
+        output = process.stdout.strip()
+
+        return jsonify({
+            "result": {
+                "input": inp,
+                "expected": expected,
+                "output": output
+            }
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "error": str(e)
+        })
 
 
 if __name__ == "__main__":

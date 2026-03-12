@@ -135,13 +135,39 @@ font-weight:bold;
 
 /* OUTPUT */
 
-.output{
-background:#1e1e1e;
-color:#00ff9c;
+#output{
+background:#111;
+color:#e5e5e5;
 padding:10px;
+height:200px;
+overflow-y:auto;
+border-radius:6px;
 font-family:monospace;
-height:100px;
-overflow:auto;
+}
+
+.result-box{
+background:#111;
+color:#e5e5e5;
+padding:12px;
+border-radius:6px;
+margin-bottom:10px;
+font-family:monospace;
+}
+
+.result-pass{
+color:#22c55e;
+font-weight:bold;
+}
+
+.result-fail{
+color:#ef4444;
+font-weight:bold;
+}
+
+.result-row{
+display:flex;
+justify-content:space-between;
+margin-top:5px;
 }
 
 /* TIMER */
@@ -207,7 +233,10 @@ font-size:14px;
 </select>
 
 <button class="btn btn-success btn-sm ms-2" onclick="runCode()">Run</button>
-<button class="btn btn-primary btn-sm">Submit</button>
+<button class="btn btn-primary btn-sm" onclick="submitCode()">Submit</button>
+<a href="/next_question" class="btn btn-primary btn-sm">
+Next Question
+</a>
 
 </div>
 
@@ -245,17 +274,13 @@ Solutions
 
 <div class="tab-pane fade show active" id="desc">
 
-<h4>Two Sum</h4>
+<h4>{{ problem.title }}</h4>
+
+<p><b>Difficulty:</b> {{ problem.difficulty }}</p>
 
 <p>
-Given an array of integers nums and target,
-return indices of two numbers that add up to target.
+{{ problem.description }}
 </p>
-
-<pre>
-Input: nums = [2,7,11,15], target = 9
-Output: [0,1]
-</pre>
 
 </div>
 
@@ -297,14 +322,20 @@ Output: [0,1]
 <b>Test Case 3</b>
 <span id="t3"></span>
 </div>
-
+<div class="testcase-box">
+<b>Test Case 4</b>
+<span id="t4"></span>
+</div>
+<div class="testcase-box">
+<b>Test Case 5</b>
+<span id="t5"></span>
 </div>
 
 </div>
 
-<div class="output" id="output">
-Console Output...
 </div>
+
+<div id="output" style="padding:10px;"></div>
 
 </div>
 
@@ -317,6 +348,7 @@ Console Output...
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
 
 <script>
 
@@ -332,11 +364,7 @@ require(["vs/editor/editor.main"],function(){
 
 editor = monaco.editor.create(document.getElementById('editor'),{
 
-value:`# Write your solution here
-
-def twoSum(nums,target):
-    pass`,
-
+value:`# Write your solution here`,
 language:"python",
 theme:"vs-dark",
 automaticLayout:true
@@ -345,53 +373,237 @@ automaticLayout:true
 
 });
 
-/* RUN BUTTON */
 
-function runCode(){
+/* RUN CODE BUTTON */
+async function runCode(){
 
-document.getElementById("t1").innerHTML="<span class='pass'>PASS</span>";
-document.getElementById("t2").innerHTML="<span class='fail'>FAIL</span>";
-document.getElementById("t3").innerHTML="<span class='pass'>PASS</span>";
+let code = editor.getValue().trim()
+let outputBox = document.getElementById("output")
 
-document.getElementById("output").innerText="Running code...\nTest cases executed.";
+outputBox.innerHTML = ""
+
+/* CHECK IF CODE EMPTY */
+
+if(code === "" || code === "# Write your solution here"){
+
+outputBox.innerHTML = `
+<div class="result-box">
+<span style="color:red;">
+Please write code before running.
+</span>
+</div>
+`
+
+return
+}
+
+/* CALL BACKEND */
+
+let response = await fetch("/run_code",{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+code:code,
+problem_id: {{ problem_id | tojson }}
+})
+})
+
+let data = await response.json()
+
+/* IF ERROR */
+
+if(data.error){
+
+outputBox.innerHTML = `
+<div class="result-box">
+<b style="color:red;">Code Error</b>
+<div>${data.error}</div>
+</div>
+`
+
+return
+}
+
+/* SHOW FIRST TEST CASE RESULT */
+
+let r = data.result
+
+outputBox.innerHTML = `
+<div class="result-box">
+
+<b>Run Result</b>
+
+<div class="result-row">
+Input : ${r.input}
+</div>
+
+<div class="result-row">
+Expected Output : ${r.expected}
+</div>
+
+<div class="result-row">
+Your Output : ${r.output}
+</div>
+
+</div>
+`
+
+outputBox.scrollTop = outputBox.scrollHeight
 
 }
+/* SUBMIT CODE */
+
+async function submitCode(){
+
+let code = editor.getValue().trim()
+let outputBox = document.getElementById("output")
+
+outputBox.innerHTML = ""
+
+/* NO CODE CHECK */
+
+if(code === "" || code === "# Write your solution here"){
+
+outputBox.innerHTML = `
+<div class="result-box">
+<div style="color:red;">
+⚠ Please write code before submitting.
+</div>
+</div>
+`
+
+return
+}
+
+/* CALL BACKEND */
+
+let response = await fetch("/submit_code",{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+code:code,
+problem_id: {{ problem_id | tojson }}
+})
+})
+
+let result = await response.json()
+
+result.results.forEach((r,i)=>{
+
+let box = document.getElementById("t"+(i+1))
+
+/* PASS FAIL TEST CASE BOX */
+
+if(r.status === "PASS"){
+
+box.innerHTML = "PASS"
+box.style.color = "white"
+box.style.background = "green"
+
+}else{
+
+box.innerHTML = "FAIL"
+box.style.color = "white"
+box.style.background = "red"
+
+}
+
+/* ERROR */
+
+if(r.error){
+
+outputBox.innerHTML += `
+<div class="result-box">
+
+<div style="color:red;">
+<b>Test Case ${i+1} ERROR</b>
+</div>
+
+<div>${r.error}</div>
+
+</div>
+`
+
+return
+}
+
+/* RESULT OUTPUT */
+
+outputBox.innerHTML += `
+
+<div class="result-box">
+
+<div>
+<b>Test Case ${i+1}</b>
+<span class="${r.status === 'PASS' ? 'result-pass' : 'result-fail'}">
+${r.status}
+</span>
+</div>
+
+<div class="result-row">
+Input : ${r.input}
+</div>
+
+<div class="result-row">
+Expected Output : ${r.expected}
+</div>
+
+<div class="result-row">
+Your Output : ${r.output}
+</div>
+
+</div>
+
+`
+
+})
+
+outputBox.scrollTop = outputBox.scrollHeight
+
+}
+
+
 
 /* TIMER */
 
-let time = 1800;
+let time = 1800
 
 setInterval(()=>{
 
-time--;
+time--
 
-let m = Math.floor(time/60);
-let s = time % 60;
+let m = Math.floor(time/60)
+let s = time % 60
 
 document.getElementById("time").innerText =
-String(m).padStart(2,'0')+":"+String(s).padStart(2,'0');
+String(m).padStart(2,'0')+":"+String(s).padStart(2,'0')
 
-},1000);
+},1000)
+
+
 
 /* RESIZABLE PANELS */
 
-const resizer=document.getElementById("drag");
-const left=document.querySelector(".left-panel");
+const resizer = document.getElementById("drag")
+const left = document.querySelector(".left-panel")
 
 resizer.addEventListener("mousedown",function(){
 
-document.onmousemove=function(e){
-left.style.width=e.clientX+"px";
+document.onmousemove = function(e){
+left.style.width = e.clientX + "px"
 }
 
-document.onmouseup=function(){
-document.onmousemove=null;
+document.onmouseup = function(){
+document.onmousemove = null
 }
 
-});
+})
 
 </script>
-
 </body>
 
 </html>
