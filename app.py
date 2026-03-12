@@ -544,6 +544,39 @@ def view_coding_questions():
 
 
 
+# Open Add MCQ Page
+@app.route("/add_mcq_page")
+def add_mcq_page():
+    return render_template("add_mcq.html")
+
+
+# Save MCQ Question
+@app.route("/add_mcq", methods=["POST"])
+def add_mcq():
+
+    question = request.form["question"]
+    option_a = request.form["option_a"]
+    option_b = request.form["option_b"]
+    option_c = request.form["option_c"]
+    option_d = request.form["option_d"]
+    answer = request.form["answer"]
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute("""
+        INSERT INTO mcq_questions
+        (question, option_a, option_b, option_c, option_d, answer)
+        VALUES (?,?,?,?,?,?)
+    """,(question, option_a, option_b, option_c, option_d, answer))
+
+    conn.commit()
+    conn.close()
+
+    return redirect("/admin_coding_judge")
+
+
+
 
 
 # ===============================

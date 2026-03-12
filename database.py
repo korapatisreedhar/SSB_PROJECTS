@@ -30,26 +30,26 @@ def init_db():
     )
     """)
 
-    # PROBLEMS TABLE
+    # CODING PROBLEMS TABLE
     cur.execute("""
     CREATE TABLE IF NOT EXISTS coding_problems(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    difficulty TEXT,
-    description TEXT NOT NULL
-)
-""")
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        difficulty TEXT,
+        description TEXT NOT NULL
+    )
+    """)
 
     # TEST CASES TABLE
     cur.execute("""
-CREATE TABLE IF NOT EXISTS testcases(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    problem_id INTEGER,
-    input TEXT,
-    output TEXT,
-    FOREIGN KEY(problem_id) REFERENCES coding_problems(id)
-)
-""")
+    CREATE TABLE IF NOT EXISTS testcases(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        problem_id INTEGER,
+        input TEXT,
+        output TEXT,
+        FOREIGN KEY(problem_id) REFERENCES coding_problems(id)
+    )
+    """)
 
     # SUBMISSIONS TABLE
     cur.execute("""
@@ -63,7 +63,21 @@ CREATE TABLE IF NOT EXISTS testcases(
     )
     """)
 
-    # PROFILES TABLE (correct one)
+    # MCQ QUESTIONS TABLE
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS mcq_questions(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        question_number INTEGER,
+        question TEXT,
+        option_a TEXT,
+        option_b TEXT,
+        option_c TEXT,
+        option_d TEXT,
+        answer TEXT
+    )
+    """)
+
+    # PROFILES TABLE
     cur.execute("""
     CREATE TABLE IF NOT EXISTS profiles(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,10 +90,7 @@ CREATE TABLE IF NOT EXISTS testcases(
     )
     """)
 
-
-
-
-    # CHECK IF ADMIN EXISTS
+    # CREATE DEFAULT ADMIN
     cur.execute("SELECT id FROM users WHERE email=?", ("admin@gmail.com",))
     admin = cur.fetchone()
 
@@ -93,5 +104,3 @@ CREATE TABLE IF NOT EXISTS testcases(
 
     conn.commit()
     conn.close()
-
-    
