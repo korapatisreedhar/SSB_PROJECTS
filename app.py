@@ -154,7 +154,6 @@ def video_interview():
 @app.route("/results")
 def results():
     return "Interview Results Page"
-
 @app.route("/performance")
 def performance():
 
@@ -173,7 +172,7 @@ def performance():
     user_id = user[0]
 
     # coding score
-    cur.execute("SELECT AVG(score) FROM submissions WHERE user_id=?", (user_id,))
+    cur.execute("SELECT AVG(score) FROM coding_results WHERE user_id=?", (user_id,))
     coding = cur.fetchone()
 
     # interview score
@@ -189,8 +188,8 @@ def performance():
 
     return render_template(
         "performance.html",
-        coding_score=coding_score,
-        interview_score=interview_score,
+        coding_score=int(coding_score),
+        interview_score=int(interview_score),
         overall=overall
     )
 # ===============================
@@ -844,6 +843,7 @@ def check_ai_unlock():
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
+    # get user id
     cur.execute("SELECT id FROM users WHERE email=?", (email,))
     user = cur.fetchone()
 
@@ -853,12 +853,20 @@ def check_ai_unlock():
 
     user_id = user[0]
 
-    cur.execute("SELECT score FROM submissions WHERE user_id=?", (user_id,))
+    # get coding score from coding_results
+    cur.execute("""
+        SELECT MAX(score)
+        FROM coding_results
+        WHERE user_id=?
+    """, (user_id,))
+
     result = cur.fetchone()
 
     conn.close()
 
-    if result and result[0] >= 75:
+    score = result[0] if result and result[0] else 0
+
+    if score >= 75:
         return jsonify({"allowed": True})
     else:
         return jsonify({"allowed": False})
@@ -994,6 +1002,7 @@ def submit_code():
     data = request.json
     code = data.get("code")
     problem_id = data.get("problem_id")
+    user_id = session["user_id"]   # get logged in user
 
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
@@ -1005,9 +1014,9 @@ def submit_code():
     )
 
     testcases = cur.fetchall()
-    conn.close()
 
     results = []
+    passed = 0   # count passed testcases
 
     for t in testcases:
 
@@ -1032,6 +1041,9 @@ def submit_code():
 
             status = "PASS" if output == expected_output else "FAIL"
 
+            if status == "PASS":
+                passed += 1
+
             results.append({
                 "input": user_input,
                 "expected": expected_output,
@@ -1046,7 +1058,25 @@ def submit_code():
                 "status": "ERROR"
             })
 
-    return jsonify({"results": results})
+    # calculate score
+    total = len(testcases)
+    score = int((passed / total) * 100)
+
+    # save score in database
+    cur.execute("""
+INSERT INTO coding_results(user_id, problem_id, score)
+VALUES (?, ?, ?)
+ON CONFLICT(user_id, problem_id)
+DO UPDATE SET score=excluded.score
+""", (user_id, problem_id, score))
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        "results": results,
+        "score": score
+    })
 
 if __name__ == "__main__":
     app.run(debug=True)
