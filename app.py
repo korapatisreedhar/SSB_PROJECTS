@@ -92,11 +92,17 @@ def start_coding_test():
 
 
 # interview
+@app.route("/coding_editor")
 @app.route("/coding_editor/<int:problem_id>")
-def coding_editor(problem_id):
+def coding_editor(problem_id=None):
 
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
+
+    if problem_id is None:
+        cur.execute("SELECT id FROM coding_problems LIMIT 1")
+        row = cur.fetchone()
+        problem_id = row[0]
 
     cur.execute("""
         SELECT title, difficulty, description
@@ -114,88 +120,12 @@ def coding_editor(problem_id):
     }
 
     return render_template(
-    "coding_editor.html",
-    problem=problem,
-    problem_id=problem_id
-)
+        "coding_editor.html",
+        problem=problem,
+        problem_id=problem_id
+    )
 
 
-<<<<<<< HEAD
-=======
-
-import subprocess
-import tempfile
-import sys
-
-@app.route("/submit_code", methods=["POST"])
-def submit_code():
-
-    data = request.json
-    code = data.get("code")
-    problem_id = data.get("problem_id")
-
-    conn = sqlite3.connect("database.db")
-    cur = conn.cursor()
-
-    cur.execute("SELECT input, output FROM testcases WHERE problem_id=?", (problem_id,))
-    testcases = cur.fetchall()
-
-    results = []
-    passed = True
-
-    for t in testcases:
-
-        user_input = t[0]
-        expected_output = t[1].strip()
-
-        try:
-
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".py", mode="w") as f:
-                f.write(code)
-                filename = f.name
-
-            result = subprocess.run(
-                [sys.executable, filename],
-                input=user_input,
-                text=True,
-                capture_output=True,
-                timeout=5
-            )
-
-            output = result.stdout.strip()
-
-            status = "PASS" if output == expected_output else "FAIL"
-
-            if status == "FAIL":
-                passed = False
-
-            results.append({
-                "input": user_input,
-                "expected": expected_output,
-                "output": output,
-                "status": status
-            })
-
-        except Exception as e:
-
-            passed = False
-
-            results.append({
-                "input": user_input,
-                "expected": expected_output,
-                "output": str(e),
-                "status": "FAIL"
-            })
-
-    conn.close()
-
-    return jsonify({
-        "results": results,
-        "all_passed": passed
-    })
-
-
->>>>>>> 89945db30aa4550c322b9041cd3ce33348633b33
 @app.route("/next_question")
 def next_question():
 
@@ -286,18 +216,22 @@ def admin_dashboard():
     selected_candidates = cur.fetchone()[0]
 
     cur.execute("""
-    SELECT 
-        users.name,
-        users.email,
-        COALESCE(submissions.score,0),
-        COALESCE(interviews.score,0),
-        COALESCE(interviews.status,'Pending')
-    FROM users
-    LEFT JOIN submissions ON users.id=submissions.user_id
-    LEFT JOIN interviews ON users.id=interviews.candidate_id
-    WHERE users.role='candidate'
-    ORDER BY users.id DESC LIMIT 5
-    """)
+SELECT 
+    users.name,
+    users.email,
+    COALESCE(submissions.score,0),
+    COALESCE(interviews.score,0),
+    COALESCE(interviews.status,'Pending'),
+    users.id
+FROM users
+LEFT JOIN submissions 
+ON users.id=submissions.user_id
+LEFT JOIN interviews 
+ON users.id=interviews.candidate_id
+WHERE users.role='candidate'
+GROUP BY users.id
+ORDER BY users.id DESC LIMIT 5
+""")
 
     candidates = cur.fetchall()
 
@@ -846,10 +780,16 @@ def save_ai_result():
 # ===============================
 # SAVE INTERVIEW VIDEO
 # ===============================
+import os
+from werkzeug.utils import secure_filename
+
 @app.route("/save_interview_video", methods=["POST"])
 def save_interview_video():
 
     email = session.get("email")
+
+    if not email:
+        return {"status":"error","message":"User not logged in"}
 
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
@@ -858,28 +798,33 @@ def save_interview_video():
     user = cur.fetchone()
 
     if not user:
-        return "User not found"
+        conn.close()
+        return {"status":"error","message":"User not found"}
 
     user_id = user[0]
 
+    if "video" not in request.files:
+        conn.close()
+        return {"status":"error","message":"No video uploaded"}
+
     video = request.files["video"]
 
-    filename = "interview_" + str(user_id) + ".webm"
+    # folder path
+    folder = "static/interview_videos"
 
-    path = "static/interviews/" + filename
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
+    # safe filename
+    filename = secure_filename("interview_" + str(user_id) + ".webm")
+
+    path = os.path.join(folder, filename)
 
     video.save(path)
 
-    cur.execute("""
-    INSERT INTO interviews(candidate_id, recording)
-    VALUES(?,?)
-    """,(user_id, path))
-
-    conn.commit()
     conn.close()
 
-    return "Video Saved"
-
+    return {"status":"saved"}
 
 @app.route("/complete_interview", methods=["POST"])
 def complete_interview():
@@ -888,10 +833,13 @@ def complete_interview():
 
 
 # check-interview
-@app.route("/check_interview")
-def check_interview():
+@app.route("/check_ai_unlock")
+def check_ai_unlock():
 
     email = session.get("email")
+
+    if not email:
+        return jsonify({"allowed": False})
 
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
@@ -900,22 +848,52 @@ def check_interview():
     user = cur.fetchone()
 
     if not user:
-        return jsonify({"completed": False})
+        conn.close()
+        return jsonify({"allowed": False})
 
     user_id = user[0]
 
-    cur.execute("SELECT * FROM interviews WHERE candidate_id=?", (user_id,))
-    interview = cur.fetchone()
+    cur.execute("SELECT score FROM submissions WHERE user_id=?", (user_id,))
+    result = cur.fetchone()
 
     conn.close()
 
-    return jsonify({"completed": True if interview else False})
+    if result and result[0] >= 75:
+        return jsonify({"allowed": True})
+    else:
+        return jsonify({"allowed": False})
+    
 #  sumbit_interview
-
 @app.route("/submit_interview", methods=["POST"])
 def submit_interview():
 
     email = session.get("email")
+
+    if not email:
+        return {"status": "error", "message": "User not logged in"}
+
+    data = request.get_json()
+
+    print("Interview route called")
+    print("Data received:", data)
+
+    if not data:
+        return {"status": "error", "message": "No data received"}
+
+    status = data.get("status", "completed")   # completed or cheated
+    answer_length = data.get("answer_length", 0)
+
+    # communication score based on speaking length
+    if answer_length < 50:
+        communication_score = 20
+    elif answer_length < 150:
+        communication_score = 40
+    elif answer_length < 300:
+        communication_score = 60
+    elif answer_length < 500:
+        communication_score = 75
+    else:
+        communication_score = 90
 
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
@@ -926,33 +904,34 @@ def submit_interview():
     if user:
         user_id = user[0]
 
-        # Example communication score
-        communication_score = 85
+        # check if interview already exists
+        cur.execute("SELECT id FROM interviews WHERE candidate_id=?", (user_id,))
+        existing = cur.fetchone()
 
-        cur.execute("""
-        INSERT INTO interviews (candidate_id, status, score)
-        VALUES (?, ?, ?)
-        """, (user_id, "completed", communication_score))
+        if existing:
+            cur.execute("""
+            UPDATE interviews
+            SET status=?, score=?
+            WHERE candidate_id=?
+            """, (status, communication_score, user_id))
+        else:
+            cur.execute("""
+            INSERT INTO interviews (candidate_id, status, score)
+            VALUES (?, ?, ?)
+            """, (user_id, status, communication_score))
 
         conn.commit()
 
     conn.close()
 
     return {"status": "ok"}
+import subprocess
+import tempfile
+import sys
+import subprocess
+import tempfile
+import sys
 
-
-
-<<<<<<< HEAD
-
-# import subprocess
-# import tempfile
-# import sys
-# import subprocess
-# import tempfile
-# import sys
-
-=======
->>>>>>> 89945db30aa4550c322b9041cd3ce33348633b33
 @app.route("/run_code", methods=["POST"])
 def run_code():
 
@@ -963,12 +942,11 @@ def run_code():
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
-    cur.execute("SELECT input, output FROM testcases WHERE problem_id=?", (problem_id,))
+    cur.execute("SELECT input, output FROM testcases WHERE problem_id=? LIMIT 1", (problem_id,))
     testcases = cur.fetchall()
 
     conn.close()
 
-<<<<<<< HEAD
     results = []
 
     for t in testcases:
@@ -1009,69 +987,66 @@ def run_code():
             })
 
     return jsonify(results)
+# sudmit
+@app.route("/submit_code", methods=["POST"])
+def submit_code():
 
+    data = request.json
+    code = data.get("code")
+    problem_id = data.get("problem_id")
 
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
 
-@app.route("/check_ai_unlock")
-def check_ai_unlock():
+    # get all test cases
+    cur.execute(
+        "SELECT input, output FROM testcases WHERE problem_id=?",
+        (problem_id,)
+    )
 
-    email=session.get("email")
+    testcases = cur.fetchall()
+    conn.close()
 
-    conn=sqlite3.connect("database.db")
-    cur=conn.cursor()
+    results = []
 
-    cur.execute("SELECT score FROM coding_results WHERE email=?",(email,))
-    data=cur.fetchone()
+    for t in testcases:
 
-    if data and data[0] >= 75:
-        return jsonify({"allowed":True})
+        user_input = t[0]
+        expected_output = t[1]
 
-    return jsonify({"allowed":False})
-=======
-    # only run first testcase for RUN button
-    testcase = testcases[0]
+        try:
 
-    inp = testcase[0]
-    expected = testcase[1].strip()
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".py", mode="w") as f:
+                f.write(code)
+                filename = f.name
 
-    try:
+            result = subprocess.run(
+                [sys.executable, filename],
+                input=user_input,
+                text=True,
+                capture_output=True,
+                timeout=5
+            )
 
-        # create temporary python file
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".py", mode="w") as f:
-            f.write(code)
-            filename = f.name
+            output = result.stdout.strip()
 
-        process = subprocess.run(
-            [sys.executable, filename],
-            input=inp,
-            text=True,
-            capture_output=True,
-            timeout=5
-        )
+            status = "PASS" if output == expected_output else "FAIL"
 
-        # if code error
-        if process.stderr:
-            return jsonify({
-                "error": process.stderr
+            results.append({
+                "input": user_input,
+                "expected": expected_output,
+                "output": output,
+                "status": status
             })
 
-        output = process.stdout.strip()
+        except Exception as e:
 
-        return jsonify({
-            "result": {
-                "input": inp,
-                "expected": expected,
-                "output": output
-            }
-        })
+            results.append({
+                "error": str(e),
+                "status": "ERROR"
+            })
 
-    except Exception as e:
-
-        return jsonify({
-            "error": str(e)
-        })
->>>>>>> 89945db30aa4550c322b9041cd3ce33348633b33
-
+    return jsonify({"results": results})
 
 if __name__ == "__main__":
     app.run(debug=True)

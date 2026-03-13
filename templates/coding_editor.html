@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
@@ -121,18 +122,6 @@ justify-content:space-between;
 align-items:center;
 }
 
-/* PASS FAIL */
-
-.pass{
-color:green;
-font-weight:bold;
-}
-
-.fail{
-color:red;
-font-weight:bold;
-}
-
 /* OUTPUT */
 
 #output{
@@ -152,16 +141,6 @@ padding:12px;
 border-radius:6px;
 margin-bottom:10px;
 font-family:monospace;
-}
-
-.result-pass{
-color:#22c55e;
-font-weight:bold;
-}
-
-.result-fail{
-color:#ef4444;
-font-weight:bold;
 }
 
 .result-row{
@@ -193,27 +172,15 @@ font-size:14px;
 
 <body>
 
-<!-- NAVBAR -->
-
 <nav class="navbar navbar-dark">
-
 <div class="container-fluid">
-
 <a class="navbar-brand d-flex align-items-center">
-
 <img src="{{ url_for('static', filename='media/logo.jpeg') }}" class="logo">
-
 <b>SSB Training And Placement Pvt Ltd</b>
-
 </a>
-
 <a href="/dashboard" class="btn btn-light">Dashboard</a>
-
 </div>
-
 </nav>
-
-<!-- EDITOR -->
 
 <div class="editor-container">
 
@@ -232,8 +199,8 @@ font-size:14px;
 <option>C++</option>
 </select>
 
-<button class="btn btn-success btn-sm ms-2" onclick="runCode()">Run</button>
-<button class="btn btn-primary btn-sm" onclick="submitCode()">Submit</button>
+<button class="btn btn-success btn-sm ms-2" onclick="runCode()">Run</button> <button class="btn btn-primary btn-sm" onclick="submitCode()">Submit</button>
+
 <a href="/next_question" class="btn btn-primary btn-sm">
 Next Question
 </a>
@@ -244,53 +211,15 @@ Next Question
 
 <div class="main">
 
-<!-- PROBLEM PANEL -->
-
 <div class="left-panel">
 
-<ul class="nav nav-tabs">
+<h4 class="p-3">{{ problem.title }}</h4>
 
-<li class="nav-item">
-<button class="nav-link active" data-bs-toggle="tab" data-bs-target="#desc">
-Description
-</button>
-</li>
+<div class="p-3">
 
-<li class="nav-item">
-<button class="nav-link" data-bs-toggle="tab" data-bs-target="#subs">
-Submissions
-</button>
-</li>
+<b>Difficulty:</b> {{ problem.difficulty }}
 
-<li class="nav-item">
-<button class="nav-link" data-bs-toggle="tab" data-bs-target="#sol">
-Solutions
-</button>
-</li>
-
-</ul>
-
-<div class="tab-content p-3">
-
-<div class="tab-pane fade show active" id="desc">
-
-<h4>{{ problem.title }}</h4>
-
-<p><b>Difficulty:</b> {{ problem.difficulty }}</p>
-
-<p>
-{{ problem.description }}
-</p>
-
-</div>
-
-<div class="tab-pane fade" id="subs">
-<p>No submissions yet.</p>
-</div>
-
-<div class="tab-pane fade" id="sol">
-<p>Solutions will appear after submission.</p>
-</div>
+<p>{{ problem.description }}</p>
 
 </div>
 
@@ -322,10 +251,12 @@ Solutions
 <b>Test Case 3</b>
 <span id="t3"></span>
 </div>
+
 <div class="testcase-box">
 <b>Test Case 4</b>
 <span id="t4"></span>
 </div>
+
 <div class="testcase-box">
 <b>Test Case 5</b>
 <span id="t5"></span>
@@ -335,7 +266,7 @@ Solutions
 
 </div>
 
-<div id="output" style="padding:10px;"></div>
+<div id="output"></div>
 
 </div>
 
@@ -349,10 +280,7 @@ Solutions
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-
 <script>
-
-/* MONACO EDITOR */
 
 require.config({
 paths:{vs:'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs'}
@@ -374,15 +302,12 @@ automaticLayout:true
 });
 
 
-/* RUN CODE BUTTON */
 async function runCode(){
 
 let code = editor.getValue().trim()
 let outputBox = document.getElementById("output")
 
 outputBox.innerHTML = ""
-
-/* CHECK IF CODE EMPTY */
 
 if(code === "" || code === "# Write your solution here"){
 
@@ -397,8 +322,6 @@ Please write code before running.
 return
 }
 
-/* CALL BACKEND */
-
 let response = await fetch("/run_code",{
 method:"POST",
 headers:{
@@ -412,28 +335,15 @@ problem_id: {{ problem_id | tojson }}
 
 let data = await response.json()
 
-/* IF ERROR */
+data.forEach((r,i)=>{
 
-if(data.error){
+outputBox.innerHTML += `
 
-outputBox.innerHTML = `
 <div class="result-box">
-<b style="color:red;">Code Error</b>
-<div>${data.error}</div>
+
+<div>
+<b>Test Case ${i+1}</b>
 </div>
-`
-
-return
-}
-
-/* SHOW FIRST TEST CASE RESULT */
-
-let r = data.result
-
-outputBox.innerHTML = `
-<div class="result-box">
-
-<b>Run Result</b>
 
 <div class="result-row">
 Input : ${r.input}
@@ -448,13 +358,14 @@ Your Output : ${r.output}
 </div>
 
 </div>
+
 `
+
+})
 
 outputBox.scrollTop = outputBox.scrollHeight
 
 }
-/* SUBMIT CODE */
-
 async function submitCode(){
 
 let code = editor.getValue().trim()
@@ -462,22 +373,17 @@ let outputBox = document.getElementById("output")
 
 outputBox.innerHTML = ""
 
-/* NO CODE CHECK */
-
 if(code === "" || code === "# Write your solution here"){
 
 outputBox.innerHTML = `
 <div class="result-box">
-<div style="color:red;">
-⚠ Please write code before submitting.
-</div>
+<span style="color:red;">
+Please write code before submitting.
+</span>
 </div>
 `
-
 return
 }
-
-/* CALL BACKEND */
 
 let response = await fetch("/submit_code",{
 method:"POST",
@@ -490,59 +396,31 @@ problem_id: {{ problem_id | tojson }}
 })
 })
 
-let result = await response.json()
+let data = await response.json()
 
-result.results.forEach((r,i)=>{
+data.results.forEach((r,i)=>{
 
 let box = document.getElementById("t"+(i+1))
-
-/* PASS FAIL TEST CASE BOX */
 
 if(r.status === "PASS"){
 
 box.innerHTML = "PASS"
-box.style.color = "white"
 box.style.background = "green"
+box.style.color = "white"
 
 }else{
 
 box.innerHTML = "FAIL"
-box.style.color = "white"
 box.style.background = "red"
+box.style.color = "white"
 
 }
-
-/* ERROR */
-
-if(r.error){
-
-outputBox.innerHTML += `
-<div class="result-box">
-
-<div style="color:red;">
-<b>Test Case ${i+1} ERROR</b>
-</div>
-
-<div>${r.error}</div>
-
-</div>
-`
-
-return
-}
-
-/* RESULT OUTPUT */
 
 outputBox.innerHTML += `
 
 <div class="result-box">
 
-<div>
-<b>Test Case ${i+1}</b>
-<span class="${r.status === 'PASS' ? 'result-pass' : 'result-fail'}">
-${r.status}
-</span>
-</div>
+<b>Test Case ${i+1} : ${r.status}</b>
 
 <div class="result-row">
 Input : ${r.input}
@@ -566,44 +444,7 @@ outputBox.scrollTop = outputBox.scrollHeight
 
 }
 
-
-
-/* TIMER */
-
-let time = 1800
-
-setInterval(()=>{
-
-time--
-
-let m = Math.floor(time/60)
-let s = time % 60
-
-document.getElementById("time").innerText =
-String(m).padStart(2,'0')+":"+String(s).padStart(2,'0')
-
-},1000)
-
-
-
-/* RESIZABLE PANELS */
-
-const resizer = document.getElementById("drag")
-const left = document.querySelector(".left-panel")
-
-resizer.addEventListener("mousedown",function(){
-
-document.onmousemove = function(e){
-left.style.width = e.clientX + "px"
-}
-
-document.onmouseup = function(){
-document.onmousemove = null
-}
-
-})
-
 </script>
-</body>
 
+</body>
 </html>

@@ -156,9 +156,24 @@ document.addEventListener("contextmenu", e => e.preventDefault());
 document.addEventListener("copy", e => e.preventDefault());
 document.addEventListener("paste", e => e.preventDefault());
 let running=false;
+let submitted=false;
 let index=0;
 let answers=[];
 let currentAnswer="";
+fetch("/check_ai_unlock")
+.then(res => res.json())
+.then(data => {
+
+if(!data.allowed){
+
+document.getElementById("status").innerText =
+"AI Interview Locked. Score 75+ required in Coding Assessment.";
+
+document.getElementById("startBtn").disabled = true;
+
+}
+
+});
 
 /* ======================
 AI INTERVIEW LOCK CHECK
@@ -428,7 +443,7 @@ window.speechSynthesis.speak(speech);
 
 function askQuestion(){
 
-if(currentAnswer.trim()!==""){
+if(currentAnswer.trim().length > 10){
 answers.push(currentAnswer.trim());
 }
 
@@ -508,9 +523,13 @@ function startRecording(){
 
 chunks=[];
 
-recorder=new MediaRecorder(stream);
+recorder = new MediaRecorder(stream,{mimeType:'video/webm'});
 
-recorder.ondataavailable=e=>chunks.push(e.data);
+recorder.ondataavailable = function(e){
+if(e.data && e.data.size > 0){
+chunks.push(e.data);
+}
+};
 
 recorder.start();
 
@@ -520,17 +539,23 @@ function stopRecording(){
 
 if(!recorder) return;
 
+recorder.onstop = function(){
+
+const blob = new Blob(chunks,{type:'video/webm'});
+
+let fd = new FormData();
+fd.append("video", blob, "interview.webm");
+
+fetch("/save_interview_video",{
+method:"POST",
+body:fd
+});
+
+};
+
 recorder.stop();
 
-const blob=new Blob(chunks,{type:'video/webm'});
-
-let fd=new FormData();
-fd.append("video",blob,"interview.webm");
-
-fetch("/save_interview_video",{method:"POST",body:fd});
-
 }
-
 /* START INTERVIEW */
 
 async function startInterview(){
@@ -625,15 +650,20 @@ answers.push(currentAnswer.trim());
 }
 
 stopRecording();
+if(!submitted){
 
-if(!cheatingDetected){
+submitted=true;
 
 fetch("/submit_interview",{
 method:"POST",
 headers:{
 "Content-Type":"application/json"
 },
-body:JSON.stringify({answers:answers})
+body:JSON.stringify({
+answers: answers,
+status: cheatingDetected ? "cheated" : "completed",
+answer_length: answers.join(" ").length
+})
 });
 
 }
