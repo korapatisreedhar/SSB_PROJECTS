@@ -97,6 +97,11 @@ margin-top:15px;
 <div class="card shadow p-4">
 
 <h2 class="mb-4">Add Coding Problem</h2>
+{% if request.args.get('success') %}
+<div class="alert alert-success">
+Coding Problem Added Successfully ✅
+</div>
+{% endif %}
 
 <form action="/add_coding_problem" method="POST">
 

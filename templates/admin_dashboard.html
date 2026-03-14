@@ -230,6 +230,7 @@ width:100%;
 <th>Coding Score</th>
 <th>Interview Score</th>
 <th>Status</th>
+<th>Interview Video</th>
 </tr>
 
 </thead>
@@ -244,17 +245,26 @@ width:100%;
 <td>{{ c[2] }}</td>
 <td>{{ c[3] }}</td>
 <td>
-<span class="badge 
-{% if c[4]=='Selected' %}
-bg-success
-{% elif c[4]=='Pending' %}
-bg-warning
+
+{% if c[4] == "cheated" %}
+
+<span class="badge bg-danger">Cheated</span>
+
+{% elif c[4] == "completed" %}
+
+<span class="badge bg-success">Completed</span>
+
 {% else %}
-bg-danger
+
+<span class="badge bg-warning">Pending</span>
+
 {% endif %}
-">
-{{ c[4] }}
-</span>
+
+</td>
+<td>
+<video width="200" controls>
+<source src="{{ url_for('static', filename='interview_videos/interview_' ~ c[5] ~ '.webm') }}" type="video/webm">
+</video>
 </td>
 </tr>
 {% endfor %}
