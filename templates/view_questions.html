@@ -1,13 +1,119 @@
-<div class="container mt-5">
+<!DOCTYPE html>
+<html lang="en">
 
-<h2 class="text-white mb-4">View Questions</h2>
+<head>
 
-<div class="row">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-<!-- View Coding Questions -->
-<div class="col-md-6">
+<title>View Questions</title>
 
-<div class="card text-center p-4 shadow">
+<link rel="icon" href="{{ url_for('static', filename='media/logo.jpeg') }}">
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+
+<style>
+
+body{
+margin:0;
+font-family:'Segoe UI',sans-serif;
+background:linear-gradient(135deg,#1e3c72,#2a5298);
+color:white;
+}
+
+/* PARTICLES */
+
+#particles-js{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+z-index:-1;
+}
+
+/* NAVBAR */
+
+.navbar{
+background:rgba(0,0,0,0.6);
+}
+
+.logo{
+height:40px;
+margin-right:10px;
+}
+
+/* CARD DESIGN */
+
+.question-card{
+background:white;
+color:black;
+border-radius:14px;
+padding:30px;
+box-shadow:0 10px 30px rgba(0,0,0,0.35);
+transition:0.3s;
+height:100%;
+}
+
+.question-card:hover{
+transform:translateY(-6px);
+}
+
+/* BUTTONS */
+
+.btn-primary{
+background:#2563eb;
+border:none;
+}
+
+.btn-success{
+background:#16a34a;
+border:none;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div id="particles-js"></div>
+
+<!-- NAVBAR -->
+
+<nav class="navbar navbar-dark">
+
+<div class="container-fluid">
+
+<a class="navbar-brand d-flex align-items-center">
+
+<img src="{{ url_for('static', filename='media/logo.jpeg') }}" class="logo">
+
+<b>SSB Training And Placement Pvt Ltd - Admin</b>
+
+</a>
+
+<a href="/admin_dashboard" class="btn btn-light">Dashboard</a>
+
+</div>
+
+</nav>
+
+<!-- CONTENT -->
+
+<div class="container py-5">
+
+<h2 class="text-center mb-5">View Questions</h2>
+
+<div class="row g-4">
+
+<!-- Coding Questions -->
+
+<div class="col-lg-6 col-md-6 col-sm-12">
+
+<div class="question-card text-center">
 
 <h3>View Coding Questions</h3>
 
@@ -21,10 +127,11 @@ View Coding Questions
 
 </div>
 
-<!-- View MCQ Questions -->
-<div class="col-md-6">
+<!-- MCQ Questions -->
 
-<div class="card text-center p-4 shadow">
+<div class="col-lg-6 col-md-6 col-sm-12">
+
+<div class="question-card text-center">
 
 <h3>View MCQ Questions</h3>
 
@@ -41,3 +148,36 @@ View MCQ Questions
 </div>
 
 </div>
+
+<script>
+
+/* PARTICLES BACKGROUND */
+
+particlesJS("particles-js",{
+
+particles:{
+number:{value:70},
+color:{value:"#ffffff"},
+shape:{type:"circle"},
+opacity:{value:0.4},
+size:{value:3},
+line_linked:{
+enable:true,
+distance:150,
+color:"#ffffff",
+opacity:0.3,
+width:1
+},
+move:{
+enable:true,
+speed:2
+}
+}
+
+});
+
+</script>
+
+</body>
+
+</html>
