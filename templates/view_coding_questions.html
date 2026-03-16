@@ -48,14 +48,40 @@ margin-right:10px;
 .question-card{
 background:white;
 color:black;
-border-radius:12px;
+border-radius:14px;
 padding:20px;
-box-shadow:0 8px 25px rgba(0,0,0,0.3);
+box-shadow:0 10px 30px rgba(0,0,0,0.35);
 transition:0.3s;
+height:100%;
+display:flex;
+flex-direction:column;
+justify-content:space-between;
 }
 
 .question-card:hover{
-transform:translateY(-5px);
+transform:translateY(-6px);
+}
+
+/* BADGES */
+
+.badge-easy{
+background:#22c55e;
+}
+
+.badge-medium{
+background:#f59e0b;
+}
+
+.badge-hard{
+background:#ef4444;
+}
+
+/* DESCRIPTION */
+
+.description{
+margin-top:10px;
+color:#444;
+flex-grow:1;
 }
 
 </style>
@@ -72,11 +98,36 @@ transform:translateY(-5px);
 
 {% for p in problems %}
 
+<<<<<<< HEAD
+<div class="col-lg-4 col-md-6 col-sm-12">
+=======
 <div class="col-md-4">
 <div class="card shadow-sm h-100">
+>>>>>>> 851da15a46f81190acb433fc0c1920c32238bfff
 
 <div class="card-body">
 
+<<<<<<< HEAD
+<div>
+
+<h5>{{ p[1] }}</h5>
+
+<span class="badge
+{% if p[2]=='Easy' %}
+badge-easy
+{% elif p[2]=='Medium' %}
+badge-medium
+{% else %}
+badge-hard
+{% endif %}
+">
+{{ p[2] }}
+</span>
+
+<p class="description">{{ p[3] }}</p>
+
+</div>
+=======
 <h5 class="card-title">{{ p[1] }}</h5>
 
 <p class="card-text">
@@ -84,6 +135,7 @@ transform:translateY(-5px);
 </p>
 
 <p class="card-text">{{ p[3] }}</p>
+>>>>>>> 851da15a46f81190acb433fc0c1920c32238bfff
 
 </div>
 
@@ -96,8 +148,37 @@ transform:translateY(-5px);
 
 </div>
 
+<<<<<<< HEAD
+<script>
+
+particlesJS("particles-js",{
+
+particles:{
+number:{value:70},
+color:{value:"#ffffff"},
+shape:{type:"circle"},
+opacity:{value:0.4},
+size:{value:3},
+line_linked:{
+enable:true,
+distance:150,
+color:"#ffffff",
+opacity:0.3,
+width:1
+},
+move:{
+enable:true,
+speed:2
+}
+}
+
+});
+
+</script>
+=======
 <!-- Bootstrap JS Bundle -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+>>>>>>> 851da15a46f81190acb433fc0c1920c32238bfff
 
 </body>
 
