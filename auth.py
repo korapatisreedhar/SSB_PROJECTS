@@ -45,6 +45,7 @@ def register_user(data):
         return jsonify({"msg": "Server error"})
 
 
+
 def login_user(data):
 
     email = data["email"]

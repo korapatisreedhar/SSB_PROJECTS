@@ -32,18 +32,41 @@ def register():
     data = request.json
     return register_user(data)
 
-
 @app.route("/login", methods=["POST"])
 def login():
-    data = request.json
 
+    data = request.json
+    email = data.get("email")
+
+    # check credentials using your auth function
     response = login_user(data)
 
-    if "role" in response.json:
-        session["email"] = data["email"]
+    # if login successful
+    if response.status_code == 200:
+
+        conn = sqlite3.connect("database.db")
+        cur = conn.cursor()
+
+        cur.execute(
+            "SELECT id, role, domain FROM users WHERE email=?",
+            (email,)
+        )
+
+        user = cur.fetchone()
+        conn.close()
+
+        if user is None:
+            return jsonify({"error": "User not found"}), 404
+
+        # clear old session
+        session.clear()
+
+        session["user_id"] = user[0]
+        session["email"] = email
+        session["role"] = user[1]
+        session["domain"] = user[2] if user[2] else ""
 
     return response
-
 # DASHBOARD PAGE
 @app.route("/dashboard")
 def dashboard():
@@ -273,6 +296,7 @@ def final_results():
 
 
 # View Candidates
+
 @app.route("/admin_candidates")
 def admin_candidates():
 
@@ -280,7 +304,7 @@ def admin_candidates():
     cur = conn.cursor()
 
     # SHOW ALL USERS (admin + candidate)
-    cur.execute("SELECT id,name,email,role FROM users")
+    cur.execute("SELECT id,name,email,role,domain FROM users")
 
     candidates = cur.fetchall()
 
@@ -310,8 +334,34 @@ def delete_user(user_id):
 @app.route("/admin_coding_judge")
 def admin_coding_judge():
     return render_template("admin_coding_judge.html")
+import bcrypt
 
+@app.route("/add_candidate", methods=["POST"])
+def add_candidate():
 
+    data = request.json
+
+    name = data.get("name")
+    email = data.get("email")
+    password = data.get("password")
+    role = data.get("role")
+    domain = data.get("domain")
+
+    # 🔑 HASH PASSWORD
+    hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute("""
+    INSERT INTO users(name,email,password,role,domain)
+    VALUES(?,?,?,?,?)
+    """,(name,email,hashed,role,domain))
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({"message":"Candidate created successfully"})
 # Add Problem
 @app.route("/add_problem", methods=["POST"])
 def add_problem():
@@ -320,14 +370,15 @@ def add_problem():
 
     title = data.get("title")
     description = data.get("description")
+    domain = data.get("domain")
 
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
     cur.execute(
-        "INSERT INTO problems (title, description) VALUES (?, ?)",
-        (title, description)
-    )
+"INSERT INTO problems (title, description, domain) VALUES (?, ?, ?)",
+(title, description, domain)
+)
 
     problem_id =cur.lastrowid
 
@@ -660,11 +711,13 @@ def add_mcq_page():
 
 
 # Save MCQ Question
-from flask import flash, redirect, url_for
 
+from flask import flash, redirect, url_for
 @app.route('/add_mcq', methods=['GET', 'POST'])
 def add_mcq():
+
     if request.method == 'POST':
+
         question_number = request.form['question_number']
         question = request.form['question']
         option_a = request.form['option_a']
@@ -672,22 +725,32 @@ def add_mcq():
         option_c = request.form['option_c']
         option_d = request.form['option_d']
         answer = request.form['answer']
+        domain = request.form['domain']   # ⭐ NEW
 
         conn = sqlite3.connect("database.db")
         cursor = conn.cursor()
 
         cursor.execute("""
         INSERT INTO mcq_questions
-        (question_number, question, option_a, option_b, option_c, option_d, answer)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (question_number, question, option_a, option_b, option_c, option_d, answer))
+        (question_number, question, option_a, option_b, option_c, option_d, answer, domain)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            question_number,
+            question,
+            option_a,
+            option_b,
+            option_c,
+            option_d,
+            answer,
+            domain
+        ))
 
         conn.commit()
         conn.close()
 
         flash("MCQ Question added successfully!", "success")
 
-        return redirect(url_for('add_mcq'))  # stay on same page
+        return redirect(url_for('add_mcq'))
 
     return render_template("add_mcq.html")
 # @app.route('/view_mcq')
@@ -719,6 +782,62 @@ def view_mcq_questions():
     conn.close()
 
     return render_template("view_mcq_questions.html", questions=questions)
+@app.route("/mcq_test")
+def mcq_test():
+
+    domain = session.get("domain")
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT * FROM mcq_questions WHERE domain=?",
+        (domain,)
+    )
+
+    questions = cur.fetchall()
+
+    conn.close()
+
+    return render_template("mcq_test.html", questions=questions)
+
+@app.route("/submit_mcq", methods=["POST"])
+def submit_mcq():
+
+    score = 0
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute("SELECT * FROM mcq_questions")
+    questions = cur.fetchall()
+
+    for q in questions:
+        user_answer = request.form.get(f"q{q[0]}")
+        if user_answer == q[7]:
+            score += 1
+
+    session["mcq_score"] = score
+
+    return redirect("/coding_editor/1")
+@app.route("/coding_test")
+def coding_test():
+
+    domain = session["domain"]
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT * FROM problems WHERE domain=?",
+        (domain,)
+    )
+
+    problems = cur.fetchall()
+
+    conn.close()
+
+    return render_template("view_coding_questions.html", problems=problems)
 
 
 @app.route("/delete_mcq/<int:mcq_id>")
@@ -1077,6 +1196,40 @@ DO UPDATE SET score=excluded.score
         "results": results,
         "score": score
     })
+@app.route("/start_exam")
+def start_exam():
+
+    user_id = session["user_id"]
+    domain = session["domain"]
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute("""
+    SELECT * FROM mcq_questions
+    WHERE domain=?
+    ORDER BY RANDOM()
+    LIMIT 15
+    """,(domain,))
+
+    mcq = cur.fetchall()
+
+    cur.execute("""
+    SELECT * FROM coding_problems
+    WHERE domain=?
+    ORDER BY RANDOM()
+    LIMIT 2
+    """,(domain,))
+
+    coding = cur.fetchall()
+
+    conn.close()
+
+    return render_template(
+        "view_questions.html",
+        mcq=mcq,
+        coding=coding
+    )
 
 if __name__ == "__main__":
     app.run(debug=True)

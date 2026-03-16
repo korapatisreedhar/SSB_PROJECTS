@@ -6,6 +6,17 @@ def init_db():
     conn = sqlite3.connect("database.db")
     conn.execute("PRAGMA foreign_keys = ON")
     cur = conn.cursor()
+    cur.execute("""
+CREATE TABLE IF NOT EXISTS mcq_answers(
+id INTEGER PRIMARY KEY AUTOINCREMENT,
+user_id INTEGER,
+question_id INTEGER,
+selected_option TEXT,
+is_correct INTEGER,
+FOREIGN KEY(user_id) REFERENCES users(id),
+FOREIGN KEY(question_id) REFERENCES mcq_questions(id)
+)
+""")
 
     # USERS TABLE
     cur.execute("""
