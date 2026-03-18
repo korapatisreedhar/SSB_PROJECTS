@@ -87,12 +87,16 @@ def dashboard():
     name = user[0] if user else "Candidate"
 
     return render_template("dashboard.html", name=name)
-
 @app.route("/start_coding_test")
 def start_coding_test():
 
+    # ✅ login check
     if "email" not in session:
         return redirect("/")
+
+    # 🔥 IMPORTANT: prevent skipping MCQ
+    if "mcq_score" not in session:
+        return redirect("/mcq_test")
 
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
@@ -107,14 +111,14 @@ def start_coding_test():
 
     selected = random.sample(problems, 2)
 
-    # ✅ IMPORTANT FIX
+    # ✅ store selected questions
     session["coding_questions"] = [p[0] for p in selected]
 
-    # ✅ TRACK INDEX
+    # ✅ track progress
     session["current_index"] = 0
     session["total_questions"] = len(selected)
 
-    # ✅ LOAD FIRST QUESTION
+    # ✅ open first question
     return redirect(f"/coding_editor/{session['coding_questions'][0]}")
 
 
@@ -199,11 +203,6 @@ def final_submit():
 @app.route("/video_interview")
 def video_interview():
     return render_template("video_interview.html")
-
-
-@app.route("/results")
-def results():
-    return "Interview Results Page"
 @app.route("/performance")
 def performance():
 
@@ -221,25 +220,41 @@ def performance():
 
     user_id = user[0]
 
-    # coding score
-    cur.execute("SELECT AVG(score) FROM coding_results WHERE user_id=?", (user_id,))
-    coding = cur.fetchone()
+    # ================= CODING SCORE =================
+    cur.execute("SELECT score FROM coding_results WHERE user_id=?", (user_id,))
+    coding_scores = cur.fetchall()
 
-    # interview score
-    cur.execute("SELECT AVG(score) FROM interviews WHERE candidate_id=?", (user_id,))
-    interview = cur.fetchone()
+    total_questions = 2   # ✅ fixed number of coding questions
 
-    coding_score = coding[0] if coding and coding[0] else 0
-    interview_score = interview[0] if interview and interview[0] else 0
+    if coding_scores:
+        total_score = sum([s[0] for s in coding_scores])
+        coding_score = total_score / total_questions
+    else:
+        coding_score = 0
 
-    overall = int((coding_score + interview_score) / 2)
+    # ================= MCQ SCORE =================
+    cur.execute("SELECT score FROM mcq_results WHERE user_id=?", (user_id,))
+    mcq = cur.fetchone()
+
+    mcq_score = mcq[0] if mcq else 0
+
+    # ✅ get total MCQs dynamically
+    domain = session.get("domain")
+
+    cur.execute("SELECT COUNT(*) FROM mcq_questions WHERE domain=?", (domain,))
+    total_mcq = cur.fetchone()[0]
+
+    mcq_percentage = (mcq_score / total_mcq) * 100 if total_mcq else 0
+
+    # ================= FINAL WEIGHTAGE =================
+    overall = int((mcq_percentage * 0.6) + (coding_score * 0.4))
 
     conn.close()
 
     return render_template(
         "performance.html",
         coding_score=int(coding_score),
-        interview_score=int(interview_score),
+        mcq_score=int(mcq_percentage),
         overall=overall
     )
 # ===============================
@@ -402,7 +417,7 @@ def delete_problem(problem_id):
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
-    cur.execute("DELETE FROM problems WHERE id=?", (problem_id,))
+    cur.execute("DELETE FROM coding_problems WHERE id=?", (problem_id,))
     conn.commit()
     conn.close()
 
@@ -792,7 +807,15 @@ def view_mcq_questions():
 @app.route("/mcq_test")
 def mcq_test():
 
+    # ✅ LOGIN CHECK (IMPORTANT)
+    if "email" not in session:
+        return redirect("/")
+
     domain = session.get("domain")
+
+    # ✅ DOMAIN CHECK
+    if not domain:
+        return "No domain assigned to user"
 
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
@@ -801,56 +824,92 @@ def mcq_test():
         "SELECT * FROM mcq_questions WHERE domain=?",
         (domain,)
     )
-
     questions = cur.fetchall()
 
     conn.close()
 
     return render_template("mcq_test.html", questions=questions)
+
+
 @app.route("/submit_mcq", methods=["POST"])
 def submit_mcq():
 
+    # ✅ LOGIN CHECK
+    if "user_id" not in session:
+        return redirect("/")
+
     score = 0
-    domain = session.get("domain")   # ✅ IMPORTANT
+    domain = session.get("domain")
+    user_id = session.get("user_id")
 
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
-    # ✅ FIX: filter by domain
+    # ✅ get only domain questions
     cur.execute(
         "SELECT * FROM mcq_questions WHERE domain=?",
         (domain,)
     )
-
     questions = cur.fetchall()
 
+    # ================= CHECK ALL ANSWERED =================
+    answered_count = 0
+
+    for q in questions:
+        user_answer = request.form.get(f"q{q[0]}")
+        if user_answer:
+            answered_count += 1
+
+    if answered_count < len(questions):
+        conn.close()
+        return "Please answer all questions before submitting"
+
+    # ================= CALCULATE SCORE =================
     for q in questions:
         user_answer = request.form.get(f"q{q[0]}")
         if user_answer == q[7]:
             score += 1
 
+    # ✅ save in session
     session["mcq_score"] = score
 
-    # ✅ IMPORTANT CHANGE
-    return redirect("/start_coding_test")
-@app.route("/coding_test")
-def coding_test():
+    # ================= SAVE IN DATABASE =================
+    try:
+        cur.execute("""
+        INSERT INTO mcq_results(user_id, score)
+        VALUES(?,?)
+        ON CONFLICT(user_id) DO UPDATE SET score=excluded.score
+        """, (user_id, score))
 
-    domain = session["domain"]
+        conn.commit()
 
-    conn = sqlite3.connect("database.db")
-    cur = conn.cursor()
-
-    cur.execute(
-        "SELECT * FROM problems WHERE domain=?",
-        (domain,)
-    )
-
-    problems = cur.fetchall()
+    except Exception as e:
+        conn.close()
+        return f"Error saving MCQ score: {str(e)}"
 
     conn.close()
 
-    return render_template("view_coding_questions.html", problems=problems)
+    # ✅ go to coding test
+    return redirect("/start_coding_test")
+
+# @app.route("/coding_test")
+# def coding_test():
+
+#     domain = session["domain"]
+
+#     conn = sqlite3.connect("database.db")
+#     cur = conn.cursor()
+
+#     cur.execute(
+#         "SELECT * FROM problems WHERE domain=?",
+#         (domain,)
+#     )
+
+#     problems = cur.fetchall()
+
+#     conn.close()
+
+#     return render_template("view_coding_questions.html", problems=problems)
 
 
 @app.route("/delete_mcq/<int:mcq_id>")
@@ -987,9 +1046,9 @@ def check_ai_unlock():
 
     # get coding score from coding_results
     cur.execute("""
-        SELECT MAX(score)
-        FROM coding_results
-        WHERE user_id=?
+        SELECT AVG(score)
+FROM coding_results
+WHERE user_id=?
     """, (user_id,))
 
     result = cur.fetchone()

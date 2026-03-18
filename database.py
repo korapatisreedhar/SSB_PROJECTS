@@ -104,6 +104,13 @@ FOREIGN KEY(question_id) REFERENCES mcq_questions(id)
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )
     """)
+    # mqc results table
+    cur.execute("""
+CREATE TABLE IF NOT EXISTS mcq_results (
+    user_id INTEGER PRIMARY KEY,
+    score INTEGER
+)
+""")
 
     # CREATE DEFAULT ADMIN
     cur.execute("SELECT id FROM users WHERE email = ?", ("admin@gmail.com",))
