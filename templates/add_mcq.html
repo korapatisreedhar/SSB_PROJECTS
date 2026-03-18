@@ -58,7 +58,6 @@ font-weight:500;
 
 <div id="particles-js"></div>
 
-<!-- NAVBAR -->
 <nav class="navbar navbar-dark">
 <div class="container-fluid">
 
@@ -72,7 +71,6 @@ font-weight:500;
 </div>
 </nav>
 
-<!-- CONTENT -->
 <div class="container py-5">
 <div class="row justify-content-center">
 <div class="col-lg-7 col-md-9">
@@ -80,16 +78,6 @@ font-weight:500;
 <div class="card p-4">
 
 <h3 class="mb-4 text-center">Add MCQ Question</h3>
-
-{% with messages = get_flashed_messages(with_categories=true) %}
-{% if messages %}
-{% for category, message in messages %}
-<div class="alert alert-success">
-{{ message }}
-</div>
-{% endfor %}
-{% endif %}
-{% endwith %}
 
 <form action="/add_mcq" method="POST">
 
@@ -99,10 +87,16 @@ font-weight:500;
 <input type="number" name="question_number" id="questionNumber" class="form-control" required>
 </div>
 
-<!-- Section -->
+<!-- Section Number -->
 <div class="mb-3">
-<label>Section</label>
-<input type="text" id="sectionName" name="section" class="form-control" placeholder="Auto or type manually">
+<label>Section Number</label>
+<input type="text" id="sectionNumber" name="section_number" class="form-control" placeholder="Auto or manual">
+</div>
+
+<!-- Section Name -->
+<div class="mb-3">
+<label>Section Name</label>
+<input type="text" id="sectionName" name="section_name" class="form-control" placeholder="Auto or manual">
 </div>
 
 <!-- Question -->
@@ -132,7 +126,7 @@ font-weight:500;
 <input type="text" name="option_d" class="form-control" required>
 </div>
 
-<!-- Domain (UNCHANGED) -->
+<!-- Domain -->
 <div class="mb-3">
 <label>Domain</label>
 <select class="form-control" name="domain">
@@ -152,7 +146,6 @@ font-weight:500;
 </select>
 </div>
 
-<!-- Buttons -->
 <div class="d-flex justify-content-between">
 <button class="btn btn-success px-4">Add MCQ</button>
 <a href="/admin_coding_judge" class="btn btn-secondary">Back</a>
@@ -166,7 +159,6 @@ font-weight:500;
 </div>
 </div>
 
-<!-- PARTICLES -->
 <script>
 particlesJS("particles-js",{
 particles:{
@@ -182,57 +174,63 @@ color:"#ffffff",
 opacity:0.3,
 width:1
 },
-move:{
-enable:true,
-speed:2
-}
+move:{enable:true,speed:2}
 }
 });
 </script>
 
-<!-- SECTION LOGIC (5 SECTIONS) -->
+<!-- SECTION LOGIC -->
 <script>
 const input = document.getElementById("questionNumber");
-const sectionField = document.getElementById("sectionName");
+const sectionNum = document.getElementById("sectionNumber");
+const sectionName = document.getElementById("sectionName");
 
 function updateSection() {
-    let num = parseInt(input.value);
 
-    if (sectionField.dataset.manual === "true") return;
+let num = parseInt(input.value);
 
-    let section = "";
+if (sectionNum.dataset.manual === "true" || sectionName.dataset.manual === "true") return;
 
-    if (!num) {
-        section = "";
-    } 
-    else if (num >= 1 && num <= 5) {
-        section = "SECTION-1 APTITUDE";
-    } 
-    else if (num >= 6 && num <= 10) {
-        section = "SECTION-2 LOGICAL REASONING";
-    } 
-    else if (num >= 11 && num <= 15) {
-        section = "SECTION-3 COMPUTER FUNDAMENTALS";
-    } 
-    else if (num >= 16 && num <= 20) {
-        section = "SECTION-4 PROGRAMMING";
-    } 
-    else if (num >= 21 && num <= 25) {
-        section = "SECTION-5 TECHNICAL";
-    } 
-    else {
-        section = "OUT OF RANGE";
-    }
+let secNo = "";
+let secName = "";
 
-    sectionField.value = section;
+if (!num){
+secNo = "";
+secName = "";
+}
+else if (num >= 1 && num <= 5){
+secNo = "SECTION-1";
+secName = "APTITUDE";
+}
+else if (num >= 6 && num <= 10){
+secNo = "SECTION-2";
+secName = "LOGICAL REASONING";
+}
+else if (num >= 11 && num <= 15){
+secNo = "SECTION-3";
+secName = "COMPUTER FUNDAMENTALS";
+}
+else if (num >= 16 && num <= 20){
+secNo = "SECTION-4";
+secName = "PROGRAMMING";
+}
+else if (num >= 21 && num <= 25){
+secNo = "SECTION-5";
+secName = "TECHNICAL";
+}
+else{
+secNo = "OUT";
+secName = "OUT OF RANGE";
 }
 
-// Allow manual override
-sectionField.addEventListener("input", () => {
-    sectionField.dataset.manual = "true";
-});
+sectionNum.value = secNo;
+sectionName.value = secName;
+}
 
-// Auto trigger
+// manual override
+sectionNum.addEventListener("input", ()=> sectionNum.dataset.manual="true");
+sectionName.addEventListener("input", ()=> sectionName.dataset.manual="true");
+
 input.addEventListener("input", updateSection);
 </script>
 
