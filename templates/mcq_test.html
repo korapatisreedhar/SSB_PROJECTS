@@ -1,55 +1,335 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>MCQ Test</title>
 
-    <!-- Bootstrap -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>MCQ Test</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<style>
+
+/* BODY */
+body{
+margin:0;
+font-family:'Segoe UI',sans-serif;
+background:#eef2f7;
+}
+
+/* NAVBAR */
+.navbar-custom{
+background:#1e293b;
+color:white;
+padding:10px 25px;
+display:flex;
+justify-content:space-between;
+align-items:center;
+}
+
+/* TIMER */
+.timer-box{
+background:#111827;
+color:#e5e7eb;
+padding:6px 14px;
+border-radius:6px;
+font-weight:600;
+}
+
+/* TIMER STATES */
+.timer-warning{
+background:#f59e0b;
+color:black;
+}
+.timer-danger{
+background:#dc2626;
+color:white;
+}
+
+/* LAYOUT */
+.main-container{
+display:flex;
+height:calc(100vh - 50px);
+}
+
+/* MAIN */
+.main{
+flex:1;
+display:flex;
+justify-content:center;
+align-items:flex-start;
+padding:20px 30px;
+}
+
+/* CARD */
+.card-box{
+width:100%;
+max-width:1200px;
+background:white;
+padding:50px;
+border-radius:10px;
+box-shadow:0 4px 16px rgba(0,0,0,0.08);
+}
+
+/* SECTION */
+#section{
+font-size:15px;
+color:#6b7280;
+}
+
+/* QUESTION */
+#question{
+font-size:22px;
+font-weight:600;
+margin:20px 0;
+}
+
+/* OPTIONS */
+.option{
+border:1px solid #d1d5db;
+padding:14px;
+margin-bottom:12px;
+border-radius:6px;
+cursor:pointer;
+}
+.option:hover{
+border-color:#2563eb;
+background:#f1f5ff;
+}
+.option.selected{
+border-color:#2563eb;
+background:#eaf0ff;
+}
+
+/* BUTTONS */
+.footer{
+display:flex;
+justify-content:space-between;
+margin-top:30px;
+}
+
+/* SIDEBAR */
+.sidebar{
+width:260px;
+background:white;
+border-left:1px solid #e5e7eb;
+padding:20px;
+overflow-y:auto;
+}
+
+/* PALETTE */
+.palette{
+display:grid;
+grid-template-columns:repeat(5,1fr);
+gap:10px;
+}
+.palette button{
+border:1px solid #d1d5db;
+background:white;
+padding:10px;
+border-radius:6px;
+}
+
+/* STATES */
+.active{border:2px solid #2563eb;color:#2563eb;}
+.answered{border:2px solid #16a34a;color:#16a34a;}
+.not-answered{border:2px solid #dc2626;color:#dc2626;}
+
+/* SECTION V BUTTON */
+.section5-btn{
+background:#0d6efd;
+color:white;
+border:none;
+}
+.section5-btn:hover{
+background:#0b5ed7;
+}
+
+/* MOBILE */
+@media(max-width:768px){
+.sidebar{display:none;}
+.card-box{padding:25px;}
+}
+
+</style>
+
 </head>
 
 <body>
 
-<div class="container mt-5">
+<!-- NAVBAR -->
+<div class="navbar-custom">
+<div><b>SSB MCQ Assessment</b></div>
+<div class="timer-box" id="timer">30:00</div>
+</div>
 
-<h2 class="mb-4">MCQ Assessment</h2>
+<div class="main-container">
 
-<form action="/submit_mcq" method="POST">
+<!-- MAIN -->
+<div class="main">
+<div class="card-box">
 
+<div id="section"></div>
+<div id="qnum"></div>
+<div id="question"></div>
+<div id="options"></div>
+
+<div class="footer">
+<button class="btn btn-outline-secondary" onclick="prev()">Previous</button>
+<button class="btn btn-primary" onclick="next()">Next</button>
+<button class="btn btn-success" onclick="submitExam()">Submit</button>
+</div>
+
+</div>
+</div>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+
+<h6>Questions</h6>
+<div class="palette">
 {% for q in questions %}
-
-<div class="card mb-3 p-3 shadow-sm">
-
-<p><b>{{ q[1] }}. {{ q[2] }}</b></p>
-
-<label>
-<input type="radio" name="q{{q[0]}}" value="A">
-{{ q[3] }}
-</label><br>
-
-<label>
-<input type="radio" name="q{{q[0]}}" value="B">
-{{ q[4] }}
-</label><br>
-
-<label>
-<input type="radio" name="q{{q[0]}}" value="C">
-{{ q[5] }}
-</label><br>
-
-<label>
-<input type="radio" name="q{{q[0]}}" value="D">
-{{ q[6] }}
-</label>
-
-</div>
-
+<button onclick="goTo({{loop.index0}})" id="btn{{loop.index0}}">
+{{ loop.index }}
+</button>
 {% endfor %}
+</div>
 
-<button type="submit" class="btn btn-primary">Submit MCQ</button>
+<hr>
 
-</form>
+<h6>Sections</h6>
+
+<button class="btn btn-sm btn-outline-primary w-100 mb-2" onclick="goTo(0)">SECTION I</button>
+<button class="btn btn-sm btn-outline-primary w-100 mb-2" onclick="goTo(5)">SECTION II</button>
+<button class="btn btn-sm btn-outline-primary w-100 mb-2" onclick="goTo(10)">SECTION III</button>
+<button class="btn btn-sm btn-outline-primary w-100 mb-2" onclick="goTo(14)">SECTION IV</button>
+
+<button class="btn btn-sm section5-btn w-100" onclick="goToCoding()">SECTION V - CODING</button>
 
 </div>
+
+</div>
+
+<!-- DATA -->
+<script>
+let questions = {{ questions | tojson }};
+</script>
+
+<script>
+
+let index=0;
+let answers={};
+let total=questions.length;
+
+// LOAD
+function load(){
+
+let q=questions[index];
+
+let sec="";
+if(index<=4) sec="SECTION I - APTITUDE";
+else if(index<=9) sec="SECTION II - LOGICAL";
+else if(index<=13) sec="SECTION III - FUNDAMENTALS";
+else sec="SECTION IV - PROGRAMMING";
+
+document.getElementById("section").innerText=sec;
+document.getElementById("qnum").innerText="Question "+(index+1)+"/"+total;
+document.getElementById("question").innerText=q[2];
+
+document.getElementById("options").innerHTML=`
+<div class="option" onclick="select('A',this)">A. ${q[3]}</div>
+<div class="option" onclick="select('B',this)">B. ${q[4]}</div>
+<div class="option" onclick="select('C',this)">C. ${q[5]}</div>
+<div class="option" onclick="select('D',this)">D. ${q[6]}</div>
+`;
+
+updatePalette();
+highlight();
+}
+
+// SELECT
+function select(opt,el){
+answers[index]=opt;
+document.querySelectorAll(".option").forEach(o=>o.classList.remove("selected"));
+el.classList.add("selected");
+updatePalette();
+}
+
+// HIGHLIGHT
+function highlight(){
+if(answers[index]){
+let map={"A":0,"B":1,"C":2,"D":3};
+document.querySelectorAll(".option")[map[answers[index]]].classList.add("selected");
+}
+}
+
+// PALETTE
+function updatePalette(){
+for(let i=0;i<total;i++){
+let btn=document.getElementById("btn"+i);
+btn.classList.remove("active","answered","not-answered");
+
+if(i===index) btn.classList.add("active");
+else if(answers[i]) btn.classList.add("answered");
+else btn.classList.add("not-answered");
+}
+}
+
+// NAV
+function next(){ if(index<total-1){ index++; load(); }}
+function prev(){ if(index>0){ index--; load(); }}
+function goTo(i){ index=i; load(); }
+
+// CODING ACCESS CONTROL
+function goToCoding(){
+if(Object.keys(answers).length<18){
+alert("⚠️ Complete all 18 MCQs first");
+return;
+}
+window.location.href="/coding_editor/1";
+}
+
+// SUBMIT
+function submitExam(){
+if(Object.keys(answers).length<18){
+alert("⚠️ Answer all 18 questions before submitting");
+return;
+}
+window.location.href="/coding_editor/1";
+}
+
+// TIMER
+let time=1800;
+let timerInterval=setInterval(()=>{
+time--;
+
+let m=Math.floor(time/60);
+let s=time%60;
+
+let el=document.getElementById("timer");
+
+el.innerText=String(m).padStart(2,'0')+":"+String(s).padStart(2,'0');
+
+// color change
+if(time<=300) el.classList.add("timer-danger");
+else if(time<=600) el.classList.add("timer-warning");
+
+if(time<=0){
+clearInterval(timerInterval);
+alert("Time up! Redirecting...");
+window.location.href="/coding_editor/1";
+}
+
+},1000);
+
+// START
+window.onload=()=>{
+document.documentElement.requestFullscreen().catch(()=>{});
+load();
+};
+
+</script>
 
 </body>
 </html>
