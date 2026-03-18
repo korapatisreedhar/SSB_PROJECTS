@@ -184,7 +184,11 @@ width:100%;
 
 <a class="active" href="/dashboard">🏠 Dashboard</a>
 
+{% if test_completed %}
+<a class="disabled text-muted">💻 Coding Assessment (Completed)</a>
+{% else %}
 <a href="/mcq_test">💻 Coding Assessment</a>
+{% endif %}
 
 <a href="/video_interview">🤖 AI Interview</a>
 
@@ -216,7 +220,11 @@ width:100%;
 Solve programming problems to evaluate your technical skills.
 </p>
 
+{% if test_completed %}
+<button class="btn btn-secondary" disabled>Test Completed</button>
+{% else %}
 <a href="/mcq_test" class="btn btn-info">Start Test</a>
+{% endif %}
 
 </div>
 

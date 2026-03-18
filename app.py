@@ -68,6 +68,7 @@ def login():
 
     return response
 # DASHBOARD PAGE
+
 @app.route("/dashboard")
 def dashboard():
 
@@ -75,18 +76,34 @@ def dashboard():
         return redirect("/")
 
     email = session.get("email")
+    user_id = session.get("user_id")
 
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
+    # ✅ get name
     cur.execute("SELECT name FROM users WHERE email=?", (email,))
     user = cur.fetchone()
+    name = user[0] if user else "Candidate"
+
+    # ✅ check MCQ
+    cur.execute("SELECT score FROM mcq_results WHERE user_id=?", (user_id,))
+    mcq_done = cur.fetchone()
+
+    # ✅ check coding count
+    cur.execute("SELECT COUNT(*) FROM coding_results WHERE user_id=?", (user_id,))
+    coding_count = cur.fetchone()[0]
 
     conn.close()
 
-    name = user[0] if user else "Candidate"
+    # ✅ final condition
+    test_completed = True if (mcq_done and coding_count >= 2) else False
 
-    return render_template("dashboard.html", name=name)
+    return render_template(
+        "dashboard.html",
+        name=name,
+        test_completed=test_completed
+    )
 @app.route("/start_coding_test")
 def start_coding_test():
 
@@ -99,15 +116,16 @@ def start_coding_test():
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
-    # 🔥 CHECK IF TEST ALREADY COMPLETED
-    cur.execute("SELECT * FROM coding_results WHERE user_id=?", (user_id,))
-    coding_done = cur.fetchall()
+    # ✅ CHECK CODING COUNT (IMPORTANT FIX)
+    cur.execute("SELECT COUNT(*) FROM coding_results WHERE user_id=?", (user_id,))
+    coding_count = cur.fetchone()[0]
 
-    if coding_done:
+    # ✅ block only if BOTH coding questions done
+    if coding_count >= 2:
         conn.close()
         return "<h2 style='text-align:center;margin-top:100px;'>✅ Your test is already submitted</h2>"
 
-    # 🔥 prevent skipping MCQ
+    # ✅ prevent skipping MCQ
     if "mcq_score" not in session:
         conn.close()
         return redirect("/mcq_test")
@@ -842,7 +860,6 @@ def view_mcq_questions():
     conn.close()
 
     return render_template("view_mcq_questions.html", questions=questions)
-
 @app.route("/mcq_test")
 def mcq_test():
 
@@ -855,15 +872,16 @@ def mcq_test():
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
-    # 🔥 CHECK IF TEST ALREADY COMPLETED
+    # ✅ CHECK MCQ
     cur.execute("SELECT score FROM mcq_results WHERE user_id=?", (user_id,))
     mcq_done = cur.fetchone()
 
-    cur.execute("SELECT * FROM coding_results WHERE user_id=?", (user_id,))
-    coding_done = cur.fetchall()
+    # ✅ CHECK CODING COUNT (IMPORTANT FIX)
+    cur.execute("SELECT COUNT(*) FROM coding_results WHERE user_id=?", (user_id,))
+    coding_count = cur.fetchone()[0]
 
-    # ❗ BLOCK RE-ATTEMPT
-    if mcq_done and coding_done:
+    # ✅ BLOCK ONLY IF FULL TEST COMPLETED
+    if mcq_done and coding_count >= 2:
         conn.close()
         return "<h2 style='text-align:center;margin-top:100px;'>✅ Your test is already submitted</h2>"
 
@@ -885,7 +903,7 @@ def mcq_test():
     questions = cur.fetchall()
     conn.close()
 
-    # ✅ DEBUG (optional)
+    # ✅ DEBUG
     print("User domain:", domain)
     print("Questions found:", len(questions))
 
