@@ -1,22 +1,17 @@
 <!DOCTYPE html>
-
 <html lang="en">
-
 <head>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <title>SSB Training And Placement Pvt Ltd</title>
 
 <link rel="icon" href="{{ url_for('static', filename='media/logo.jpeg') }}">
-
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
 
 <style>
-
+/* (NO CHANGE — YOUR CSS SAME) */
 body{
 margin:0;
 font-family:'Segoe UI',sans-serif;
@@ -25,149 +20,24 @@ min-height:100vh;
 display:flex;
 flex-direction:column;
 }
-
-/* NAVBAR */
-
-.navbar{
-background:rgba(0,0,0,0.6);
-backdrop-filter:blur(8px);
-}
-
-.logo{
-height:40px;
-margin-right:10px;
-}
-
-/* MAIN CONTAINER */
-
-.editor-container{
-margin:20px;
-background:white;
-border-radius:12px;
-overflow:hidden;
-box-shadow:0 10px 25px rgba(0,0,0,0.3);
-flex:1;
-}
-
-/* TOP BAR */
-
-.topbar{
-background:#f8f9fa;
-border-bottom:1px solid #ddd;
-padding:10px 20px;
-display:flex;
-justify-content:space-between;
-align-items:center;
-}
-
-/* MAIN LAYOUT */
-
-.main{
-display:flex;
-height:70vh;
-}
-
-/* LEFT PANEL */
-
-.left-panel{
-width:45%;
-background:white;
-overflow:auto;
-border-right:3px solid #ddd;
-}
-
-/* RESIZER */
-
-.resizer{
-width:6px;
-cursor:col-resize;
-background:#ddd;
-}
-
-/* RIGHT PANEL */
-
-.right-panel{
-flex:1;
-display:flex;
-flex-direction:column;
-}
-
-/* CODE EDITOR */
-
-#editor{
-height:40vh;
-}
-
-/* TEST CASES */
-
-.testcases{
-background:#f8f9fa;
-padding:10px;
-border-top:1px solid #ddd;
-}
-
-.testcase-row{
-display:flex;
-gap:15px;
-}
-
-.testcase-box{
-flex:1;
-background:white;
-padding:10px;
-border-radius:6px;
-border:1px solid #ddd;
-display:flex;
-justify-content:space-between;
-align-items:center;
-}
-
-/* OUTPUT */
-
-#output{
-background:#111;
-color:#e5e5e5;
-padding:10px;
-height:200px;
-overflow-y:auto;
-border-radius:6px;
-font-family:monospace;
-}
-
-.result-box{
-background:#111;
-color:#e5e5e5;
-padding:12px;
-border-radius:6px;
-margin-bottom:10px;
-font-family:monospace;
-}
-
-.result-row{
-display:flex;
-justify-content:space-between;
-margin-top:5px;
-}
-
-/* TIMER */
-
-.timer{
-font-weight:bold;
-color:#e11d48;
-}
-
-/* FOOTER */
-
-.footer{
-text-align:center;
-padding:12px;
-background:rgba(0,0,0,0.6);
-color:white;
-font-size:14px;
-}
-
+.navbar{background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);}
+.logo{height:40px;margin-right:10px;}
+.editor-container{margin:20px;background:white;border-radius:12px;overflow:hidden;box-shadow:0 10px 25px rgba(0,0,0,0.3);flex:1;}
+.topbar{background:#f8f9fa;border-bottom:1px solid #ddd;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;}
+.main{display:flex;height:70vh;}
+.left-panel{width:45%;background:white;overflow:auto;border-right:3px solid #ddd;}
+.resizer{width:6px;cursor:col-resize;background:#ddd;}
+.right-panel{flex:1;display:flex;flex-direction:column;}
+#editor{height:40vh;}
+.testcases{background:#f8f9fa;padding:10px;border-top:1px solid #ddd;}
+.testcase-row{display:flex;gap:15px;}
+.testcase-box{flex:1;background:white;padding:10px;border-radius:6px;border:1px solid #ddd;display:flex;justify-content:space-between;align-items:center;}
+#output{background:#111;color:#e5e5e5;padding:10px;height:200px;overflow-y:auto;border-radius:6px;font-family:monospace;}
+.result-box{background:#111;color:#e5e5e5;padding:12px;border-radius:6px;margin-bottom:10px;font-family:monospace;}
+.result-row{display:flex;justify-content:space-between;margin-top:5px;}
+.timer{font-weight:bold;color:#e11d48;}
+.footer{text-align:center;padding:12px;background:rgba(0,0,0,0.6);color:white;font-size:14px;}
 </style>
-
 </head>
 
 <body>
@@ -183,46 +53,36 @@ font-size:14px;
 </nav>
 
 <div class="editor-container">
-
 <div class="topbar">
 
 <b>Coding Assessment</b>
 
 <div>
-
 <span class="timer">⏱ Time Left: <span id="time">30:00</span></span>
 
-<select class="form-select form-select-sm d-inline w-auto ms-3">
-<option>Python</option>
-<option>JavaScript</option>
-<option>Java</option>
-<option>C++</option>
+<select id="language" class="form-select form-select-sm d-inline w-auto ms-3" onchange="changeLanguage()">
+<option value="python">Python</option>
+<option value="java">Java</option>
+
 </select>
 
-<button class="btn btn-success btn-sm ms-2" onclick="runCode()">Run</button> <button class="btn btn-primary btn-sm" onclick="submitCode()">Submit</button>
+<button class="btn btn-success btn-sm ms-2" onclick="runCode()">Run</button>
+<button class="btn btn-primary btn-sm" onclick="submitCode()">Submit</button>
 
 <a href="/next_question" class="btn btn-primary btn-sm">
 Next Question
 </a>
-
 </div>
-
 </div>
 
 <div class="main">
 
 <div class="left-panel">
-
 <h4 class="p-3">{{ problem.title }}</h4>
-
 <div class="p-3">
-
 <b>Difficulty:</b> {{ problem.difficulty }}
-
 <p>{{ problem.description }}</p>
-
 </div>
-
 </div>
 
 <div class="resizer" id="drag"></div>
@@ -232,46 +92,20 @@ Next Question
 <div id="editor"></div>
 
 <div class="testcases">
-
 <h6>Test Cases</h6>
-
 <div class="testcase-row">
-
-<div class="testcase-box">
-<b>Test Case 1</b>
-<span id="t1"></span>
+<div class="testcase-box"><b>Test Case 1</b><span id="t1"></span></div>
+<div class="testcase-box"><b>Test Case 2</b><span id="t2"></span></div>
+<div class="testcase-box"><b>Test Case 3</b><span id="t3"></span></div>
+<div class="testcase-box"><b>Test Case 4</b><span id="t4"></span></div>
+<div class="testcase-box"><b>Test Case 5</b><span id="t5"></span></div>
 </div>
-
-<div class="testcase-box">
-<b>Test Case 2</b>
-<span id="t2"></span>
-</div>
-
-<div class="testcase-box">
-<b>Test Case 3</b>
-<span id="t3"></span>
-</div>
-
-<div class="testcase-box">
-<b>Test Case 4</b>
-<span id="t4"></span>
-</div>
-
-<div class="testcase-box">
-<b>Test Case 5</b>
-<span id="t5"></span>
-</div>
-
-</div>
-
 </div>
 
 <div id="output"></div>
 
 </div>
-
 </div>
-
 </div>
 
 <div class="footer">
@@ -279,9 +113,7 @@ Next Question
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-
 <script>
-
 require.config({
 paths:{vs:'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs'}
 });
@@ -289,110 +121,103 @@ paths:{vs:'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs'}
 let editor;
 
 require(["vs/editor/editor.main"],function(){
-
 editor = monaco.editor.create(document.getElementById('editor'),{
-
-value:`# Write your solution here`,
+value:``,
 language:"python",
 theme:"vs-dark",
 automaticLayout:true
+});
+
+// ✅ AUTO LOAD TEMPLATE
+changeLanguage();
 
 });
 
-});
 
-
+// ================= RUN =================
 async function runCode(){
+
+if (!editor) { alert("Editor not loaded"); return; }
 
 let code = editor.getValue().trim()
 let outputBox = document.getElementById("output")
-
 outputBox.innerHTML = ""
 
-if(code === "" || code === "# Write your solution here"){
-
-outputBox.innerHTML = `
-<div class="result-box">
-<span style="color:red;">
-Please write code before running.
-</span>
-</div>
-`
-
+if(code === ""){
+outputBox.innerHTML = `<div class="result-box"><span style="color:red;">Please write code before running.</span></div>`
 return
 }
+
+// ✅ FIX: language outside fetch
+let lang = document.getElementById("language").value;
 
 let response = await fetch("/run_code",{
 method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-code:code,
-problem_id: {{ problem_id | tojson }}
+headers:{"Content-Type":"application/json"},
+body: JSON.stringify({
+    code: code,
+    problem_id: {{ problem_id | tojson }},
+    language: lang
 })
-})
+});
 
 let data = await response.json()
 
-data.forEach((r,i)=>{
+// ✅ ERROR HANDLE
+if (data.error) {
+outputBox.innerHTML = `<div class="result-box" style="color:red;">❌ ${data.error}</div>`;
+return;
+}
 
+// ✅ SHOW RESULTS
+data.results.forEach((r,i)=>{
 outputBox.innerHTML += `
-
 <div class="result-box">
-
-<div>
-<b>Test Case ${i+1}</b>
-</div>
-
-<div class="result-row">
-Input : ${r.input}
-</div>
-
-<div class="result-row">
-Expected Output : ${r.expected}
-</div>
-
-<div class="result-row">
-Your Output : ${r.output}
-</div>
-
-</div>
-
-`
-
+<b>Test Case ${i+1} : ${r.status}</b>
+<div>Input : ${r.input}</div>
+<div>Expected : ${r.expected}</div>
+<div>Output : ${r.output}</div>
+</div>`
 })
 
-outputBox.scrollTop = outputBox.scrollHeight
+// ✅ SCROLL FIX
+outputBox.scrollTop = outputBox.scrollHeight;
 
 }
+
+
+// ================= SUBMIT =================
 async function submitCode(){
+
+if (!editor) { alert("Editor not loaded"); return; }
+
+// reset boxes
+for(let i=1;i<=5;i++){
+let box = document.getElementById("t"+i);
+box.innerHTML = "";
+box.style.background = "white";
+box.style.color = "black";
+}
 
 let code = editor.getValue().trim()
 let outputBox = document.getElementById("output")
-
 outputBox.innerHTML = ""
 
-if(code === "" || code === "# Write your solution here"){
-
-outputBox.innerHTML = `
-<div class="result-box">
-<span style="color:red;">
-Please write code before submitting.
-</span>
-</div>
-`
+if(code === ""){
+outputBox.innerHTML = `<div class="result-box"><span style="color:red;">Please write code before submitting.</span></div>`
 return
 }
 
+// ✅ FIX
+let lang = document.getElementById("language").value;
+
 let response = await fetch("/submit_code",{
 method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
+headers:{"Content-Type":"application/json"},
 body:JSON.stringify({
-code:code,
-problem_id: {{ problem_id | tojson }}
+    code: code,
+    problem_id: {{ problem_id | tojson }},
+    language: lang
 })
 })
 
@@ -403,48 +228,78 @@ data.results.forEach((r,i)=>{
 let box = document.getElementById("t"+(i+1))
 
 if(r.status === "PASS"){
-
 box.innerHTML = "PASS"
 box.style.background = "green"
 box.style.color = "white"
-
 }else{
-
 box.innerHTML = "FAIL"
 box.style.background = "red"
 box.style.color = "white"
-
 }
 
 outputBox.innerHTML += `
-
 <div class="result-box">
-
 <b>Test Case ${i+1} : ${r.status}</b>
-
-<div class="result-row">
-Input : ${r.input}
-</div>
-
-<div class="result-row">
-Expected Output : ${r.expected}
-</div>
-
-<div class="result-row">
-Your Output : ${r.output}
-</div>
-
-</div>
-
-`
-
+<div>Input : ${r.input}</div>
+<div>Expected : ${r.expected}</div>
+<div>Output : ${r.output}</div>
+</div>`
 })
 
 outputBox.scrollTop = outputBox.scrollHeight
-
 }
 
-</script>
 
+// ================= TIMER =================
+let time = 1800;
+function startTimer() {
+let timer = setInterval(() => {
+let minutes = Math.floor(time / 60);
+let seconds = time % 60;
+seconds = seconds < 10 ? "0" + seconds : seconds;
+document.getElementById("time").innerText = minutes + ":" + seconds;
+
+if (time <= 0) {
+clearInterval(timer);
+alert("Time Up!");
+submitCode();
+}
+time--;
+}, 1000);
+}
+startTimer();
+
+
+// ================= LANGUAGE SWITCH =================
+function changeLanguage() {
+let lang = document.getElementById("language").value;
+
+if (lang === "python") {
+editor.setValue(`# Write your solution here
+
+# Read input
+
+# Write logic
+
+# Print output
+`);
+}
+
+else if (lang === "java") {
+editor.setValue(`import java.util.*;
+
+public class Main {
+    public static void main(String[] args) {
+
+        Scanner sc = new Scanner(System.in);
+
+        // Write your code here
+
+    }
+}`);
+}
+monaco.editor.setModelLanguage(editor.getModel(), lang);
+}
+</script>
 </body>
 </html>

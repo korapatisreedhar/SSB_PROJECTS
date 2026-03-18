@@ -1052,36 +1052,50 @@ def submit_interview():
     conn.close()
 
     return {"status": "ok"}
-import subprocess
-import tempfile
-import sys
-import subprocess
-import tempfile
-import sys
 
+import subprocess
+import tempfile
+import sys
+import subprocess
+import tempfile
+import sys
+import re
 @app.route("/run_code", methods=["POST"])
 def run_code():
 
     data = request.json
     code = data.get("code")
     problem_id = data.get("problem_id")
+    language = data.get("language", "python")
 
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
-    cur.execute("SELECT input, output FROM testcases WHERE problem_id=? LIMIT 1", (problem_id,))
-    testcases = cur.fetchall()
-
+    # ✅ ONE TEST CASE ONLY
+    cur.execute(
+        "SELECT input, output FROM testcases WHERE problem_id=? LIMIT 1",
+        (problem_id,)
+    )
+    testcase = cur.fetchone()
     conn.close()
 
-    results = []
+    if not testcase:
+        return jsonify({"error": "No testcases found"})
 
-    for t in testcases:
+    user_input = testcase[0]
+    expected_output = testcase[1]
 
-        user_input = t[0]
-        expected_output = t[1]
+    try:
 
-        try:
+        # ================= PYTHON =================
+        if language == "python":
+
+            try:
+                compile(code, "<string>", "exec")
+            except SyntaxError as e:
+                return jsonify({
+                    "error": f"Syntax Error (Line {e.lineno}): {str(e)}"
+                })
 
             with tempfile.NamedTemporaryFile(delete=False, suffix=".py", mode="w") as f:
                 f.write(code)
@@ -1095,25 +1109,67 @@ def run_code():
                 timeout=5
             )
 
-            if result.stderr:
-                results.append({
-                    "input": user_input,
-                    "error": result.stderr
+        # ================= JAVA =================
+        elif language == "java":
+
+            import os
+            import re
+
+            # ✅ CHECK CLASS NAME
+            if "class Main" not in code:
+                return jsonify({
+                    "error": "Java class name must be 'Main'"
                 })
 
-            else:
-                results.append({
-                    "input": user_input,
-                    "expected": expected_output,
-                    "output": result.stdout.strip()
-                })
+            with tempfile.TemporaryDirectory() as temp_dir:
 
-        except Exception as e:
-            results.append({
-                "error": str(e)
-            })
+                java_file = os.path.join(temp_dir, "Main.java")
 
-    return jsonify(results)
+                # ✅ USE USER CODE DIRECTLY (NO WRAP)
+                with open(java_file, "w") as f:
+                    f.write(code)
+
+                # compile
+                compile_proc = subprocess.run(
+                    ["javac", java_file],
+                    capture_output=True,
+                    text=True
+                )
+
+                if compile_proc.stderr:
+                    return jsonify({
+                        "error": compile_proc.stderr
+                    })
+
+                # run
+                result = subprocess.run(
+                    ["java", "-cp", temp_dir, "Main"],
+                    input=user_input,
+                    text=True,
+                    capture_output=True,
+                    timeout=5
+                )
+
+        else:
+            return jsonify({"error": "Unsupported language"})
+
+        # ================= OUTPUT =================
+        if result.stderr:
+            return jsonify({"error": result.stderr})
+
+        output = result.stdout.strip()
+
+        return jsonify({
+            "results": [{
+                "input": user_input,
+                "expected": expected_output,
+                "output": output,
+                "status": "PASS" if output == expected_output else "FAIL"
+            }]
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)})
 # sudmit
 @app.route("/submit_code", methods=["POST"])
 def submit_code():
@@ -1121,81 +1177,155 @@ def submit_code():
     data = request.json
     code = data.get("code")
     problem_id = data.get("problem_id")
-    user_id = session["user_id"]   # get logged in user
+    language = data.get("language", "python")
+    user_id = session["user_id"]
 
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
-    # get all test cases
     cur.execute(
         "SELECT input, output FROM testcases WHERE problem_id=?",
         (problem_id,)
     )
-
     testcases = cur.fetchall()
 
     results = []
-    passed = 0   # count passed testcases
+    passed = 0
 
-    for t in testcases:
+    try:
 
-        user_input = t[0]
-        expected_output = t[1]
+        # ================= PYTHON =================
+        if language == "python":
 
-        try:
+            try:
+                compile(code, "<string>", "exec")
+            except SyntaxError as e:
+                return jsonify({
+                    "error": f"Syntax Error (Line {e.lineno}): {str(e)}"
+                })
 
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".py", mode="w") as f:
-                f.write(code)
-                filename = f.name
+        # ================= JAVA =================
+        elif language == "java":
 
-            result = subprocess.run(
-                [sys.executable, filename],
-                input=user_input,
-                text=True,
-                capture_output=True,
-                timeout=5
-            )
+            if "class Main" not in code:
+                return jsonify({
+                    "error": "Java class name must be 'Main'"
+                })
 
-            output = result.stdout.strip()
+        else:
+            return jsonify({"error": "Unsupported language"})
 
-            status = "PASS" if output == expected_output else "FAIL"
+        # ================= RUN TEST CASES =================
+        for t in testcases:
 
-            if status == "PASS":
-                passed += 1
+            user_input = t[0]
+            expected_output = t[1]
 
-            results.append({
-                "input": user_input,
-                "expected": expected_output,
-                "output": output,
-                "status": status
-            })
+            try:
 
-        except Exception as e:
+                # -------- PYTHON --------
+                if language == "python":
 
-            results.append({
-                "error": str(e),
-                "status": "ERROR"
-            })
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".py", mode="w") as f:
+                        f.write(code)
+                        filename = f.name
 
-    # calculate score
-    total = len(testcases)
-    score = int((passed / total) * 100)
+                    result = subprocess.run(
+                        [sys.executable, filename],
+                        input=user_input,
+                        text=True,
+                        capture_output=True,
+                        timeout=5
+                    )
 
-    # save score in database
-    cur.execute("""
-INSERT INTO coding_results(user_id, problem_id, score)
-VALUES (?, ?, ?)
-ON CONFLICT(user_id, problem_id)
-DO UPDATE SET score=excluded.score
-""", (user_id, problem_id, score))
+                # -------- JAVA --------
+                elif language == "java":
 
-    conn.commit()
-    conn.close()
+                    import os
 
-    return jsonify({
-        "results": results,
-        "score": score
-    })
+                    with tempfile.TemporaryDirectory() as temp_dir:
+
+                        java_file = os.path.join(temp_dir, "Main.java")
+
+                        # ✅ USE USER CODE DIRECTLY (NO WRAP)
+                        with open(java_file, "w") as f:
+                            f.write(code)
+
+                        # compile
+                        compile_proc = subprocess.run(
+                            ["javac", java_file],
+                            capture_output=True,
+                            text=True
+                        )
+
+                        if compile_proc.stderr:
+                            results.append({
+                                "input": user_input,
+                                "expected": expected_output,
+                                "output": compile_proc.stderr.strip(),
+                                "status": "ERROR"
+                            })
+                            continue
+
+                        # run
+                        result = subprocess.run(
+                            ["java", "-cp", temp_dir, "Main"],
+                            input=user_input,
+                            text=True,
+                            capture_output=True,
+                            timeout=5
+                        )
+
+                # -------- COMMON RESULT --------
+                if result.stderr:
+                    output = result.stderr.strip()
+                    status = "ERROR"
+                else:
+                    output = result.stdout.strip()
+                    status = "PASS" if output == expected_output else "FAIL"
+
+                if status == "PASS":
+                    passed += 1
+
+                results.append({
+                    "input": user_input,
+                    "expected": expected_output,
+                    "output": output,
+                    "status": status
+                })
+
+            except Exception as e:
+                results.append({
+                    "input": user_input,
+                    "expected": expected_output,
+                    "output": str(e),
+                    "status": "ERROR"
+                })
+
+        # ================= SCORE =================
+        total = len(testcases)
+        score = int((passed / total) * 100) if total > 0 else 0
+
+        # ================= SAVE =================
+        cur.execute("""
+        INSERT INTO coding_results(user_id, problem_id, score)
+        VALUES (?, ?, ?)
+        ON CONFLICT(user_id, problem_id)
+        DO UPDATE SET score=excluded.score
+        """, (user_id, problem_id, score))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            "results": results,
+            "score": score,
+            "passed": passed,
+            "total": total
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)})
 @app.route("/start_exam")
 def start_exam():
 
