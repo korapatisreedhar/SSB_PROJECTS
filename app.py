@@ -94,13 +94,25 @@ def start_coding_test():
     if "email" not in session:
         return redirect("/")
 
-    # 🔥 IMPORTANT: prevent skipping MCQ
-    if "mcq_score" not in session:
-        return redirect("/mcq_test")
+    user_id = session.get("user_id")
 
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
+    # 🔥 CHECK IF TEST ALREADY COMPLETED
+    cur.execute("SELECT * FROM coding_results WHERE user_id=?", (user_id,))
+    coding_done = cur.fetchall()
+
+    if coding_done:
+        conn.close()
+        return "<h2 style='text-align:center;margin-top:100px;'>✅ Your test is already submitted</h2>"
+
+    # 🔥 prevent skipping MCQ
+    if "mcq_score" not in session:
+        conn.close()
+        return redirect("/mcq_test")
+
+    # ================= LOAD QUESTIONS =================
     cur.execute("SELECT id FROM coding_problems")
     problems = cur.fetchall()
 
@@ -120,7 +132,6 @@ def start_coding_test():
 
     # ✅ open first question
     return redirect(f"/coding_editor/{session['coding_questions'][0]}")
-
 
 # interview
 @app.route("/coding_editor")
@@ -452,21 +463,43 @@ def admin_results():
     cur = conn.cursor()
 
     cur.execute("""
-    SELECT users.id,
-           users.name,
-           users.email,
-           COALESCE(submissions.score,0),
-           COALESCE(interviews.score,0),
-           COALESCE(interviews.status,'Pending')
-    FROM users
-    LEFT JOIN submissions ON users.id=submissions.user_id
-    LEFT JOIN interviews ON users.id=interviews.candidate_id
-    WHERE users.role='candidate'
+    SELECT u.id,
+           u.name,
+           u.email,
+
+           IFNULL(AVG(c.score), 0) as coding_score,
+           IFNULL(AVG(i.score), 0) as interview_score,
+           IFNULL(m.score, 0) as mcq_score
+
+    FROM users u
+
+    LEFT JOIN coding_results c ON u.id = c.user_id
+    LEFT JOIN interviews i ON u.id = i.candidate_id
+    LEFT JOIN mcq_results m ON u.id = m.user_id
+
+    WHERE u.role = 'candidate'
+
+    GROUP BY u.id
     """)
 
-    results = cur.fetchall()
-
+    data = cur.fetchall()
     conn.close()
+
+    results = []
+
+    for row in data:
+        user_id, name, email, coding, interview, mcq = row
+
+        # ✅ MCQ → percentage
+        mcq_percent = (mcq / 18) * 100 if mcq else 0
+
+        # ✅ final score (60% MCQ + 40% coding)
+        overall = int((mcq_percent * 0.6) + (coding * 0.4))
+
+        # ✅ status
+        status = "Completed" if (mcq > 0 and coding > 0) else "Pending"
+
+        results.append((name, email, int(coding), int(interview), overall, status))
 
     return render_template("admin_results.html", results=results)
 
@@ -809,6 +842,7 @@ def view_mcq_questions():
     conn.close()
 
     return render_template("view_mcq_questions.html", questions=questions)
+
 @app.route("/mcq_test")
 def mcq_test():
 
@@ -816,17 +850,31 @@ def mcq_test():
     if "email" not in session:
         return redirect("/")
 
-    domain = session.get("domain")
-
-    # ✅ DOMAIN CHECK
-    if not domain:
-        return "No domain assigned to user"
-
-    # ✅ CLEAN DOMAIN (important)
-    domain = domain.strip()
+    user_id = session.get("user_id")
 
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
+
+    # 🔥 CHECK IF TEST ALREADY COMPLETED
+    cur.execute("SELECT score FROM mcq_results WHERE user_id=?", (user_id,))
+    mcq_done = cur.fetchone()
+
+    cur.execute("SELECT * FROM coding_results WHERE user_id=?", (user_id,))
+    coding_done = cur.fetchall()
+
+    # ❗ BLOCK RE-ATTEMPT
+    if mcq_done and coding_done:
+        conn.close()
+        return "<h2 style='text-align:center;margin-top:100px;'>✅ Your test is already submitted</h2>"
+
+    # ================= DOMAIN LOGIC =================
+    domain = session.get("domain")
+
+    if not domain:
+        conn.close()
+        return "No domain assigned to user"
+
+    domain = domain.strip()
 
     # ✅ CASE-INSENSITIVE MATCH
     cur.execute(
@@ -835,14 +883,12 @@ def mcq_test():
     )
 
     questions = cur.fetchall()
-
     conn.close()
 
-    # ✅ DEBUG (optional - remove later)
+    # ✅ DEBUG (optional)
     print("User domain:", domain)
     print("Questions found:", len(questions))
 
-    # ❗ If no questions found
     if not questions:
         return f"No MCQ questions found for domain: {domain}"
 

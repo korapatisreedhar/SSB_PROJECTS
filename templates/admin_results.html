@@ -103,23 +103,15 @@ width:100%;
 <div id="particles-js"></div>
 
 <nav class="navbar navbar-dark">
-
 <div class="container-fluid">
-
 <a class="navbar-brand d-flex align-items-center">
-
 <img src="{{ url_for('static', filename='media/logo.jpeg') }}" class="logo">
-
 <b>SSB Training And Placement Pvt Ltd - Admin</b>
-
 </a>
-
 </div>
-
 </nav>
 
 <div class="container-fluid">
-
 <div class="row">
 
 <div class="col-md-2 sidebar">
@@ -127,17 +119,11 @@ width:100%;
 <h5 class="text-center">⚙ Admin Panel</h5>
 
 <a href="/admin_dashboard">📊 Dashboard</a>
-
 <a href="/admin_candidates">👥 Candidates</a>
-
 <a href="/admin_coding_judge">💻 Coding Judge</a>
-
 <a href="/admin_results">📈 Coding Results</a>
-
 <a href="/admin_ai_interviews">🤖 AI Interviews</a>
-
 <a href="/view_questions">📄 View Questions</a>
-
 <a class="active" href="/final_results">🏆 Results</a>
 
 </div>
@@ -151,18 +137,14 @@ width:100%;
 <table class="table table-striped">
 
 <thead>
-
 <tr>
-
 <th>Name</th>
 <th>Email</th>
 <th>Coding Score</th>
 <th>Interview Score</th>
 <th>Overall Score</th>
 <th>Status</th>
-
 </tr>
-
 </thead>
 
 <tbody>
@@ -173,17 +155,17 @@ width:100%;
 
 <tr>
 
-<td>{{ r[1] }}</td>
-<td>{{ r[2] }}</td>
+<td>{{ r[0] }}</td>   <!-- name -->
+<td>{{ r[1] }}</td>   <!-- email -->
 
-<td>{{ r[3] }}%</td>
-<td>{{ r[4] }}%</td>
+<td>{{ r[2] }}%</td>  <!-- coding -->
+<td>{{ r[3] }}%</td>  <!-- interview -->
 
-<td>{{ ((r[3] + r[4]) / 2)|round(1) }}%</td>
+<td>{{ r[4] }}%</td>  <!-- overall -->
 
 <td>
-{% if r[5] == "Selected" %}
-<span class="badge bg-success">Selected</span>
+{% if r[5] == "Completed" %}
+<span class="badge bg-success">Completed</span>
 {% elif r[5] == "Pending" %}
 <span class="badge bg-warning">Pending</span>
 {% else %}
@@ -212,13 +194,10 @@ width:100%;
 </div>
 
 </div>
-
 </div>
 
 <script>
-
 particlesJS("particles-js",{
-
 particles:{
 number:{value:70},
 color:{value:"#ffffff"},
@@ -237,9 +216,7 @@ enable:true,
 speed:2
 }
 }
-
 })
-
 </script>
 
 <footer class="footer">
@@ -247,5 +224,4 @@ speed:2
 </footer>
 
 </body>
-
 </html>
