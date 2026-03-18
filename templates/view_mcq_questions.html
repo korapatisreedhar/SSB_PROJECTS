@@ -10,6 +10,7 @@
 <div class="container mt-5">
 
 <h2 class="text-center mb-4">MCQ Questions</h2>
+
 <table class="table table-bordered">
 
 <thead class="table-dark">
@@ -22,7 +23,8 @@
 <th>Option C</th>
 <th>Option D</th>
 <th>Answer</th>
-<th>Delete</th>
+<th>Domain</th>   <!-- ✅ NEW -->
+<th>Actions</th>
 </tr>
 </thead>
 
@@ -31,7 +33,10 @@
 {% for q in questions %}
 
 <tr>
-<td>{{ q[0] }}</td>
+
+<!-- ✅ SERIAL NUMBER -->
+<td>{{ loop.index }}</td>
+
 <td>{{ q[1] }}</td>
 <td>{{ q[2] }}</td>
 <td>{{ q[3] }}</td>
@@ -40,7 +45,15 @@
 <td>{{ q[6] }}</td>
 <td>{{ q[7] }}</td>
 
+<!-- ✅ DOMAIN COLUMN -->
+<td>{{ q[8] }}</td>
+
 <td>
+<a href="/edit_mcq/{{ q[0] }}"
+class="btn btn-warning btn-sm">
+Edit
+</a>
+
 <a href="/delete_mcq/{{ q[0] }}"
 class="btn btn-danger btn-sm"
 onclick="return confirm('Delete this question?')">

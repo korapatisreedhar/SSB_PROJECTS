@@ -790,12 +790,17 @@ def add_mcq():
 @app.route("/view_mcq_questions")
 def view_mcq_questions():
 
+    # ✅ optional login check (recommended)
+    if "email" not in session:
+        return redirect("/")
+
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
+    # ✅ ADD domain column
     cur.execute("""
         SELECT id,question_number,question,
-               option_a,option_b,option_c,option_d,answer
+               option_a,option_b,option_c,option_d,answer,domain
         FROM mcq_questions
     """)
 
@@ -807,7 +812,7 @@ def view_mcq_questions():
 @app.route("/mcq_test")
 def mcq_test():
 
-    # ✅ LOGIN CHECK (IMPORTANT)
+    # ✅ LOGIN CHECK
     if "email" not in session:
         return redirect("/")
 
@@ -817,16 +822,29 @@ def mcq_test():
     if not domain:
         return "No domain assigned to user"
 
+    # ✅ CLEAN DOMAIN (important)
+    domain = domain.strip()
+
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
+    # ✅ CASE-INSENSITIVE MATCH
     cur.execute(
-        "SELECT * FROM mcq_questions WHERE domain=?",
+        "SELECT * FROM mcq_questions WHERE LOWER(domain)=LOWER(?)",
         (domain,)
     )
+
     questions = cur.fetchall()
 
     conn.close()
+
+    # ✅ DEBUG (optional - remove later)
+    print("User domain:", domain)
+    print("Questions found:", len(questions))
+
+    # ❗ If no questions found
+    if not questions:
+        return f"No MCQ questions found for domain: {domain}"
 
     return render_template("mcq_test.html", questions=questions)
 
@@ -911,21 +929,68 @@ def submit_mcq():
 
 #     return render_template("view_coding_questions.html", problems=problems)
 
-
-@app.route("/delete_mcq/<int:mcq_id>")
-def delete_mcq(mcq_id):
+@app.route("/edit_mcq/<int:mcq_id>", methods=["GET", "POST"])
+def edit_mcq(mcq_id):
 
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
-    cur.execute("DELETE FROM mcq_questions WHERE id=?", (mcq_id,))
+    if request.method == "POST":
 
-    conn.commit()
+        question = request.form["question"]
+        option_a = request.form["option_a"]
+        option_b = request.form["option_b"]
+        option_c = request.form["option_c"]
+        option_d = request.form["option_d"]
+        answer = request.form["answer"]
+
+        cur.execute("""
+        UPDATE mcq_questions
+        SET question=?, option_a=?, option_b=?, option_c=?, option_d=?, answer=?
+        WHERE id=?
+        """, (question, option_a, option_b, option_c, option_d, answer, mcq_id))
+
+        conn.commit()
+        conn.close()
+
+        return redirect("/view_mcq_questions")
+
+    # GET request
+    cur.execute("SELECT * FROM mcq_questions WHERE id=?", (mcq_id,))
+    question = cur.fetchone()
+    conn.close()
+
+    return render_template("edit_mcq.html", q=question)
+@app.route("/delete_mcq/<int:mcq_id>")
+def delete_mcq(mcq_id):
+
+    # ✅ login check (optional but recommended)
+    if "email" not in session:
+        return redirect("/")
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    try:
+        # ✅ check if question exists
+        cur.execute("SELECT id FROM mcq_questions WHERE id=?", (mcq_id,))
+        data = cur.fetchone()
+
+        if not data:
+            conn.close()
+            return "Question not found"
+
+        # ✅ delete
+        cur.execute("DELETE FROM mcq_questions WHERE id=?", (mcq_id,))
+        conn.commit()
+
+    except Exception as e:
+        conn.close()
+        return f"Error deleting question: {str(e)}"
+
     conn.close()
 
     return redirect("/view_mcq_questions")
-
-
 
 # ===============================
 # SAVE AI INTERVIEW RESULT
