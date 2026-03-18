@@ -88,13 +88,11 @@ def dashboard():
 
     return render_template("dashboard.html", name=name)
 
-
 @app.route("/start_coding_test")
 def start_coding_test():
 
     if "email" not in session:
         return redirect("/")
-    
 
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
@@ -109,9 +107,15 @@ def start_coding_test():
 
     selected = random.sample(problems, 2)
 
+    # ✅ IMPORTANT FIX
     session["coding_questions"] = [p[0] for p in selected]
 
-    return redirect(f"/coding_editor/{selected[0][0]}")
+    # ✅ TRACK INDEX
+    session["current_index"] = 0
+    session["total_questions"] = len(selected)
+
+    # ✅ LOAD FIRST QUESTION
+    return redirect(f"/coding_editor/{session['coding_questions'][0]}")
 
 
 # interview
@@ -119,13 +123,20 @@ def start_coding_test():
 @app.route("/coding_editor/<int:problem_id>")
 def coding_editor(problem_id=None):
 
+    # ✅ GET QUESTIONS FROM SESSION
+    questions = session.get("coding_questions")
+
+    if not questions:
+        return redirect("/dashboard")
+
+    index = session.get("current_index", 0)
+
+    # ✅ if no problem_id → load from session using index
+    if problem_id is None:
+        problem_id = questions[index]
+
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
-
-    if problem_id is None:
-        cur.execute("SELECT id FROM coding_problems LIMIT 1")
-        row = cur.fetchone()
-        problem_id = row[0]
 
     cur.execute("""
         SELECT title, difficulty, description
@@ -136,6 +147,10 @@ def coding_editor(problem_id=None):
     row = cur.fetchone()
     conn.close()
 
+    # ✅ SAFETY CHECK
+    if not row:
+        return "Problem not found"
+
     problem = {
         "title": row[0],
         "difficulty": row[1],
@@ -145,26 +160,38 @@ def coding_editor(problem_id=None):
     return render_template(
         "coding_editor.html",
         problem=problem,
-        problem_id=problem_id
+        problem_id=problem_id,
+        current_index=index,
+        total_questions=session.get("total_questions", 2)
     )
-
 
 @app.route("/next_question")
 def next_question():
 
     questions = session.get("coding_questions")
+    index = session.get("current_index", 0)
 
     if not questions:
         return redirect("/dashboard")
 
-    questions.pop(0)
+    index += 1
+    session["current_index"] = index
 
-    if len(questions) == 0:
-        return redirect("/dashboard")
+    # if still questions left
+    if index < len(questions):
+        return redirect(f"/coding_editor/{questions[index]}")
+    else:
+        return redirect("/final_submit")
+# final sudmit 
+@app.route("/final_submit")
+def final_submit():
 
-    session["coding_questions"] = questions
+    # clear session test data
+    session.pop("coding_questions", None)
+    session.pop("current_index", None)
+    session.pop("total_questions", None)
 
-    return redirect(f"/coding_editor/{questions[0]}")
+    return redirect("/performance")
 
 
 
@@ -335,7 +362,6 @@ def delete_user(user_id):
 def admin_coding_judge():
     return render_template("admin_coding_judge.html")
 import bcrypt
-
 @app.route("/add_candidate", methods=["POST"])
 def add_candidate():
 
@@ -347,46 +373,27 @@ def add_candidate():
     role = data.get("role")
     domain = data.get("domain")
 
-    # 🔑 HASH PASSWORD
-    hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
+    import bcrypt
+    hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode('utf-8')
 
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
-    cur.execute("""
-    INSERT INTO users(name,email,password,role,domain)
-    VALUES(?,?,?,?,?)
-    """,(name,email,hashed,role,domain))
+    try:
+        cur.execute("""
+        INSERT INTO users(name,email,password,role,domain)
+        VALUES(?,?,?,?,?)
+        """,(name,email,hashed,role,domain))
 
-    conn.commit()
+        conn.commit()
+
+    except Exception as e:
+        conn.close()
+        return jsonify({"error": str(e)})   # 🔥 IMPORTANT
+
     conn.close()
 
     return jsonify({"message":"Candidate created successfully"})
-# Add Problem
-@app.route("/add_problem", methods=["POST"])
-def add_problem():
-
-    data = request.json
-
-    title = data.get("title")
-    description = data.get("description")
-    domain = data.get("domain")
-
-    conn = sqlite3.connect("database.db")
-    cur = conn.cursor()
-
-    cur.execute(
-"INSERT INTO problems (title, description, domain) VALUES (?, ?, ?)",
-(title, description, domain)
-)
-
-    problem_id =cur.lastrowid
-
-    conn.commit()
-    conn.close()
-
-    return jsonify({"message": "Problem added successfully"})
-
 
 # Delete Problem
 @app.route("/delete_problem/<int:problem_id>")
@@ -800,16 +807,21 @@ def mcq_test():
     conn.close()
 
     return render_template("mcq_test.html", questions=questions)
-
 @app.route("/submit_mcq", methods=["POST"])
 def submit_mcq():
 
     score = 0
+    domain = session.get("domain")   # ✅ IMPORTANT
 
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
-    cur.execute("SELECT * FROM mcq_questions")
+    # ✅ FIX: filter by domain
+    cur.execute(
+        "SELECT * FROM mcq_questions WHERE domain=?",
+        (domain,)
+    )
+
     questions = cur.fetchall()
 
     for q in questions:
@@ -819,7 +831,8 @@ def submit_mcq():
 
     session["mcq_score"] = score
 
-    return redirect("/coding_editor/1")
+    # ✅ IMPORTANT CHANGE
+    return redirect("/start_coding_test")
 @app.route("/coding_test")
 def coding_test():
 

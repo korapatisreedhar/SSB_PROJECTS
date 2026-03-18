@@ -265,18 +265,17 @@ Delete
 </div>
 
 <script>
-
 function addCandidate(){
 
-let name = document.getElementById("name").value
-let email = document.getElementById("email").value
-let password = document.getElementById("password").value
-let role = document.getElementById("role").value
-let domain = document.getElementById("domain").value   // NEW
+let name = document.getElementById("name").value.trim();
+let email = document.getElementById("email").value.trim();
+let password = document.getElementById("password").value.trim();
+let role = document.getElementById("role").value;
+let domain = document.getElementById("domain").value;
 
 if(name=="" || email=="" || password==""){
-alert("Please fill all fields")
-return
+alert("Please fill all fields");
+return;
 }
 
 fetch("/add_candidate",{
@@ -289,30 +288,34 @@ name:name,
 email:email,
 password:password,
 role:role,
-domain:domain      // NEW
+domain:domain
 })
 })
 
 .then(response => response.json())
+
 .then(data => {
 
-if(data.message || data.msg){
-alert("User Created Successfully")
-window.location.href="/admin_candidates"
-}else{
-alert("Error creating user")
+if(data.error){
+alert(data.error);   // ✅ shows real error
+}
+else if(data.message || data.msg){
+alert("User Created Successfully");
+window.location.href="/admin_candidates";
+}
+else{
+alert("Error creating user");
 }
 
 })
 
 .catch(error=>{
-console.log(error)
-alert("Server error")
-})
+console.log(error);
+alert("Server error");
+});
 
 }
-
-particlesJS("particles-js",{
+particlesJS("particles-js", {
 
 particles:{
 number:{value:70},
@@ -333,8 +336,7 @@ speed:2
 }
 }
 
-})
-
+});
 </script>
 
 <footer class="footer">

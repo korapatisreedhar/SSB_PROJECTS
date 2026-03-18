@@ -69,9 +69,9 @@ flex-direction:column;
 <button class="btn btn-success btn-sm ms-2" onclick="runCode()">Run</button>
 <button class="btn btn-primary btn-sm" onclick="submitCode()">Submit</button>
 
-<a href="/next_question" class="btn btn-primary btn-sm">
-Next Question
-</a>
+<button class="btn btn-primary btn-sm" id="nextBtn" onclick="handleNext()">
+Next
+</button>
 </div>
 </div>
 
@@ -262,7 +262,7 @@ document.getElementById("time").innerText = minutes + ":" + seconds;
 if (time <= 0) {
 clearInterval(timer);
 alert("Time Up!");
-submitCode();
+window.location.href = "/final_submit";
 }
 time--;
 }, 1000);
@@ -300,6 +300,36 @@ public class Main {
 }
 monaco.editor.setModelLanguage(editor.getModel(), lang);
 }
+let currentQuestion = {{ current_index | default(0) }};
+let totalQuestions = {{ total_questions | default(5) }};
+
+function handleNext() {
+
+    if (currentQuestion === totalQuestions - 1) {
+        // LAST QUESTION → SUBMIT TEST
+        let confirmSubmit = confirm("Are you sure you want to finish the test? You cannot change answers after this.");
+        
+        if (confirmSubmit) {
+            window.location.href = "/final_submit";
+        }
+    } else {
+        // MOVE NEXT QUESTION
+        window.location.href = "/next_question";
+    }
+}
+function updateButton() {
+    let btn = document.getElementById("nextBtn");
+
+    if (currentQuestion === totalQuestions - 1) {
+        btn.innerText = "Finish Test";
+        btn.classList.remove("btn-primary");
+        btn.classList.add("btn-danger");
+    }
+}
+
+window.onload = function () {
+    updateButton();
+};
 </script>
 </body>
 </html>
