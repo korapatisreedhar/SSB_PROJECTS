@@ -6,15 +6,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <title>View Coding Questions</title>
+
 <link rel="icon" href="{{ url_for('static', filename='media/logo.jpeg') }}">
 
-<!-- Bootstrap CSS -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
 <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
 
 <style>
 
+/* BODY */
 body{
 margin:0;
 font-family:'Segoe UI',sans-serif;
@@ -23,7 +24,6 @@ color:white;
 }
 
 /* PARTICLES */
-
 #particles-js{
 position:fixed;
 top:0;
@@ -33,10 +33,13 @@ height:100%;
 z-index:-1;
 }
 
-/* NAVBAR */
-
-.navbar{
+/* 🔥 NAVBAR */
+.navbar-custom{
 background:rgba(0,0,0,0.6);
+padding:10px 20px;
+display:flex;
+justify-content:space-between;
+align-items:center;
 }
 
 .logo{
@@ -44,45 +47,61 @@ height:40px;
 margin-right:10px;
 }
 
-/* CARD DESIGN */
-
+/* CARD */
 .question-card{
 background:white;
-color:black;
-border-radius:14px;
-padding:20px;
-box-shadow:0 10px 30px rgba(0,0,0,0.35);
-transition:0.3s;
+color:#111827;
+border-radius:12px;
+padding:22px;
+box-shadow:0 6px 20px rgba(0,0,0,0.2);
+transition:0.25s;
 height:100%;
 display:flex;
 flex-direction:column;
-justify-content:space-between;
 }
 
 .question-card:hover{
-transform:translateY(-6px);
+transform:translateY(-4px);
+}
+
+/* HEADER ROW */
+.card-top{
+display:flex;
+justify-content:space-between;
+align-items:center;
+margin-bottom:10px;
+}
+
+/* TITLE */
+.title{
+font-size:16px;
+font-weight:600;
 }
 
 /* BADGES */
-
-.badge-easy{
-background:#22c55e;
+.badge-pill{
+padding:4px 10px;
+border-radius:20px;
+font-size:12px;
+font-weight:600;
 }
 
-.badge-medium{
-background:#f59e0b;
-}
-
-.badge-hard{
-background:#ef4444;
-}
+.easy{background:#16a34a;color:white;}
+.medium{background:#f59e0b;color:white;}
+.hard{background:#dc2626;color:white;}
 
 /* DESCRIPTION */
-
 .description{
-margin-top:10px;
-color:#444;
+font-size:14px;
+color:#4b5563;
+margin-top:8px;
 flex-grow:1;
+}
+
+/* RESPONSIVE */
+@media(max-width:768px){
+.title{font-size:14px;}
+.description{font-size:13px;}
 }
 
 </style>
@@ -90,6 +109,23 @@ flex-grow:1;
 </head>
 
 <body>
+
+<div id="particles-js"></div>
+
+<!-- 🔥 NAVBAR -->
+<div class="navbar-custom">
+
+<div class="d-flex align-items-center">
+
+
+
+<img src="{{ url_for('static', filename='media/logo.jpeg') }}" class="logo">
+
+<b>SSB Training And Placement Pvt Ltd</b>
+
+</div>
+<a href="/admin_dashboard" class="btn btn-light">← Back</a>
+</div>
 
 <div class="container py-5">
 
@@ -101,31 +137,27 @@ flex-grow:1;
 
 <div class="col-lg-4 col-md-6 col-sm-12">
 
-<div class="card-body">
+<div class="question-card">
 
-<div>
+<div class="card-top">
 
-<h5>{{ p[1] }}</h5>
+<div class="title">{{ p[1] }}</div>
 
-<span class="badge
-{% if p[2]=='Easy' %}
-badge-easy
-{% elif p[2]=='Medium' %}
-badge-medium
-{% else %}
-badge-hard
+<span class="badge-pill
+{% if p[2]=='Easy' %}easy
+{% elif p[2]=='Medium' %}medium
+{% else %}hard
 {% endif %}
 ">
 {{ p[2] }}
 </span>
 
+</div>
+
 <p class="description">{{ p[3] }}</p>
 
 </div>
 
-</div>
-
-</div>
 </div>
 
 {% endfor %}
@@ -136,8 +168,13 @@ badge-hard
 
 <script>
 
-particlesJS("particles-js",{
+/* BACK BUTTON */
+function goBack(){
+window.history.back();
+}
 
+/* PARTICLES */
+particlesJS("particles-js",{
 particles:{
 number:{value:70},
 color:{value:"#ffffff"},
@@ -156,11 +193,9 @@ enable:true,
 speed:2
 }
 }
-
 });
 
 </script>
 
 </body>
-
 </html>
