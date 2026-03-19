@@ -29,6 +29,11 @@ justify-content:space-between;
 align-items:center;
 }
 
+.navbar-custom small{
+display:block;
+line-height:1;
+}
+
 /* TIMER */
 .timer-box{
 background:#111827;
@@ -159,10 +164,23 @@ background:#0b5ed7;
 
 <body>
 
-<!-- NAVBAR -->
+<!-- 🔥 NAVBAR WITH LOGO -->
 <div class="navbar-custom">
-<div><b>SSB MCQ Assessment</b></div>
+
+<div class="d-flex align-items-center">
+
+<img src="{{ url_for('static', filename='media/logo.jpeg') }}" 
+style="height:40px; margin-right:10px;">
+
+<div>
+<h5>SSB Training And Placement Pvt Ltd</h5>
+
+</div>
+
+</div>
+
 <div class="timer-box" id="timer">30:00</div>
+
 </div>
 
 <div class="main-container">
@@ -225,7 +243,6 @@ let total=questions.length;
 
 // LOAD
 function load(){
-
 let q=questions[index];
 
 let sec="";
@@ -282,7 +299,7 @@ function next(){ if(index<total-1){ index++; load(); }}
 function prev(){ if(index>0){ index--; load(); }}
 function goTo(i){ index=i; load(); }
 
-// CODING ACCESS CONTROL
+// CODING ACCESS
 function goToCoding(){
 if(Object.keys(answers).length<18){
 alert("⚠️ Complete all 18 MCQs first");
@@ -293,29 +310,27 @@ window.location.href="/coding_editor/1";
 
 // SUBMIT
 function submitExam(){
-
-    if(Object.keys(answers).length < 18){
-        alert("⚠️ Answer all 18 questions before submitting");
-        return;
-    }
-
-    // create form dynamically
-    let form = document.createElement("form");
-    form.method = "POST";
-    form.action = "/submit_mcq";
-
-    // append answers
-    for(let i=0;i<questions.length;i++){
-        let input = document.createElement("input");
-        input.type = "hidden";
-        input.name = "q" + questions[i][0]; // question id
-        input.value = answers[i] || "";
-        form.appendChild(input);
-    }
-
-    document.body.appendChild(form);
-    form.submit(); // ✅ goes to backend
+if(Object.keys(answers).length<18){
+alert("⚠️ Answer all 18 questions before submitting");
+return;
 }
+
+let form=document.createElement("form");
+form.method="POST";
+form.action="/submit_mcq";
+
+for(let i=0;i<questions.length;i++){
+let input=document.createElement("input");
+input.type="hidden";
+input.name="q"+questions[i][0];
+input.value=answers[i]||"";
+form.appendChild(input);
+}
+
+document.body.appendChild(form);
+form.submit();
+}
+
 // TIMER
 let time=1800;
 let timerInterval=setInterval(()=>{
@@ -328,7 +343,6 @@ let el=document.getElementById("timer");
 
 el.innerText=String(m).padStart(2,'0')+":"+String(s).padStart(2,'0');
 
-// color change
 if(time<=300) el.classList.add("timer-danger");
 else if(time<=600) el.classList.add("timer-warning");
 
