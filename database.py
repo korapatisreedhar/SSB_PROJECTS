@@ -6,6 +6,7 @@ def init_db():
     conn = sqlite3.connect("database.db")
     conn.execute("PRAGMA foreign_keys = ON")
     cur = conn.cursor()
+
     cur.execute("""
 CREATE TABLE IF NOT EXISTS mcq_answers(
 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -28,6 +29,27 @@ FOREIGN KEY(question_id) REFERENCES mcq_questions(id)
         role TEXT DEFAULT 'candidate'
     )
     """)
+
+    # ✅ NEW COLUMNS (SAFE ADD - NO ERROR IF EXISTS)
+    try:
+        cur.execute("ALTER TABLE users ADD COLUMN domain TEXT")
+    except:
+        pass
+
+    try:
+        cur.execute("ALTER TABLE users ADD COLUMN test_completed INTEGER DEFAULT 0")
+    except:
+        pass
+
+    try:
+        cur.execute("ALTER TABLE users ADD COLUMN cheated INTEGER DEFAULT 0")
+    except:
+        pass
+
+    try:
+        cur.execute("ALTER TABLE users ADD COLUMN score INTEGER DEFAULT 0")
+    except:
+        pass
 
     # INTERVIEWS TABLE
     cur.execute("""
@@ -104,7 +126,8 @@ FOREIGN KEY(question_id) REFERENCES mcq_questions(id)
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )
     """)
-    # mqc results table
+
+    # MCQ RESULTS TABLE
     cur.execute("""
 CREATE TABLE IF NOT EXISTS mcq_results (
     user_id INTEGER PRIMARY KEY,

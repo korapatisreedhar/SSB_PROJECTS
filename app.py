@@ -68,7 +68,6 @@ def login():
 
     return response
 # DASHBOARD PAGE
-
 @app.route("/dashboard")
 def dashboard():
 
@@ -81,33 +80,24 @@ def dashboard():
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
-    # ✅ get name
     cur.execute("SELECT name FROM users WHERE email=?", (email,))
     user = cur.fetchone()
     name = user[0] if user else "Candidate"
 
-    # ✅ check MCQ
     cur.execute("SELECT score FROM mcq_results WHERE user_id=?", (user_id,))
     mcq_done = cur.fetchone()
 
-    # ✅ check coding count
     cur.execute("SELECT COUNT(*) FROM coding_results WHERE user_id=?", (user_id,))
     coding_count = cur.fetchone()[0]
 
     conn.close()
 
-    # ✅ final condition
     test_completed = True if (mcq_done and coding_count >= 2) else False
 
-    return render_template(
-        "dashboard.html",
-        name=name,
-        test_completed=test_completed
-    )
+    return render_template("dashboard.html", name=name, test_completed=test_completed)
 @app.route("/start_coding_test")
 def start_coding_test():
 
-    # ✅ login check
     if "email" not in session:
         return redirect("/")
 
@@ -116,21 +106,17 @@ def start_coding_test():
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
-    # ✅ CHECK CODING COUNT (IMPORTANT FIX)
     cur.execute("SELECT COUNT(*) FROM coding_results WHERE user_id=?", (user_id,))
     coding_count = cur.fetchone()[0]
 
-    # ✅ block only if BOTH coding questions done
     if coding_count >= 2:
         conn.close()
         return "<h2 style='text-align:center;margin-top:100px;'>✅ Your test is already submitted</h2>"
 
-    # ✅ prevent skipping MCQ
     if "mcq_score" not in session:
         conn.close()
         return redirect("/mcq_test")
 
-    # ================= LOAD QUESTIONS =================
     cur.execute("SELECT id FROM coding_problems")
     problems = cur.fetchall()
 
@@ -141,14 +127,10 @@ def start_coding_test():
 
     selected = random.sample(problems, 2)
 
-    # ✅ store selected questions
     session["coding_questions"] = [p[0] for p in selected]
-
-    # ✅ track progress
     session["current_index"] = 0
     session["total_questions"] = len(selected)
 
-    # ✅ open first question
     return redirect(f"/coding_editor/{session['coding_questions'][0]}")
 
 # interview
@@ -215,19 +197,48 @@ def next_question():
         return redirect(f"/coding_editor/{questions[index]}")
     else:
         return redirect("/final_submit")
-# final sudmit 
 @app.route("/final_submit")
 def final_submit():
 
-    # clear session test data
+    if "user_id" not in session:
+        return redirect("/")
+
+    user_id = session.get("user_id")
+    cheated = session.get("violations", 0) >= 3
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    # coding score
+    cur.execute("SELECT AVG(score) FROM coding_results WHERE user_id=?", (user_id,))
+    coding_score = cur.fetchone()[0] or 0
+
+    # mcq score
+    cur.execute("SELECT score FROM mcq_results WHERE user_id=?", (user_id,))
+    mcq = cur.fetchone()
+    mcq_score = mcq[0] if mcq else 0
+
+    total_score = int((mcq_score * 2) + coding_score)
+
+    # save result
+    cur.execute("""
+        UPDATE users 
+        SET test_completed = 1,
+            cheated = ?,
+            score = ?
+        WHERE id = ?
+    """, (int(cheated), total_score, user_id))
+
+    conn.commit()
+    conn.close()
+
+    # clear exam session only
     session.pop("coding_questions", None)
     session.pop("current_index", None)
     session.pop("total_questions", None)
+    session.pop("violations", None)
 
     return redirect("/performance")
-
-
-
 
 @app.route("/video_interview")
 def video_interview():
@@ -237,10 +248,20 @@ def performance():
 
     email = session.get("email")
 
+    if not email:
+        return redirect("/")
+
+    # 👉 only show message, don't block app
+    if session.get("violations", 0) >= 3:
+        return render_template("performance.html",
+                               coding_score=0,
+                               mcq_score=0,
+                               overall=0,
+                               disqualified=True)
+
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
-    # get user id
     cur.execute("SELECT id FROM users WHERE email=?", (email,))
     user = cur.fetchone()
 
@@ -249,25 +270,20 @@ def performance():
 
     user_id = user[0]
 
-    # ================= CODING SCORE =================
+    # CODING
     cur.execute("SELECT score FROM coding_results WHERE user_id=?", (user_id,))
     coding_scores = cur.fetchall()
 
-    total_questions = 2   # ✅ fixed number of coding questions
+    total_questions = 2
 
-    if coding_scores:
-        total_score = sum([s[0] for s in coding_scores])
-        coding_score = total_score / total_questions
-    else:
-        coding_score = 0
+    coding_score = sum([s[0] for s in coding_scores]) / total_questions if coding_scores else 0
 
-    # ================= MCQ SCORE =================
+    # MCQ
     cur.execute("SELECT score FROM mcq_results WHERE user_id=?", (user_id,))
     mcq = cur.fetchone()
 
     mcq_score = mcq[0] if mcq else 0
 
-    # ✅ get total MCQs dynamically
     domain = session.get("domain")
 
     cur.execute("SELECT COUNT(*) FROM mcq_questions WHERE domain=?", (domain,))
@@ -275,17 +291,15 @@ def performance():
 
     mcq_percentage = (mcq_score / total_mcq) * 100 if total_mcq else 0
 
-    # ================= FINAL WEIGHTAGE =================
     overall = int((mcq_percentage * 0.6) + (coding_score * 0.4))
 
     conn.close()
 
-    return render_template(
-        "performance.html",
-        coding_score=int(coding_score),
-        mcq_score=int(mcq_percentage),
-        overall=overall
-    )
+    return render_template("performance.html",
+                           coding_score=int(coding_score),
+                           mcq_score=int(mcq_percentage),
+                           overall=overall,
+                           disqualified=False)
 # ===============================
 # ADMIN PANEL ROUTES
 # ===============================
@@ -1374,6 +1388,9 @@ def run_code():
 # sudmit
 @app.route("/submit_code", methods=["POST"])
 def submit_code():
+    # 🚨 CHEAT BLOCK
+    if session.get("violations", 0) >= 3:
+        return jsonify({"error": "❌ Disqualified due to cheating"})
 
     data = request.json
     code = data.get("code")
@@ -1561,6 +1578,24 @@ def start_exam():
         mcq=mcq,
         coding=coding
     )
+
+@app.route('/log_violation', methods=['POST'])
+def log_violation():
+
+    if "user_id" not in session:
+        return jsonify({"status": "no user"})
+
+    data = request.json
+    reason = data.get("reason")
+
+    if "violations" not in session:
+        session["violations"] = 0
+
+    session["violations"] += 1
+
+    print(f"[CHEAT] User:{session['user_id']} | {reason} | Count:{session['violations']}")
+
+    return jsonify({"status": "logged"})
 
 if __name__ == "__main__":
     app.run(debug=True)

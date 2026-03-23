@@ -187,7 +187,7 @@ width:100%;
 {% if test_completed %}
 <a class="disabled text-muted">💻 Coding Assessment (Completed)</a>
 {% else %}
-<a href="/mcq_test">💻 Test Assessment</a>
+<a href="#" onclick="startExam()">💻 Test Assessment</a>
 {% endif %}
 
 <a href="/video_interview">🤖 AI Interview</a>
@@ -223,7 +223,7 @@ Test your analytical thinking and coding expertise with MCQ and programming chal
 {% if test_completed %}
 <button class="btn btn-secondary" disabled>Test Completed</button>
 {% else %}
-<a href="/mcq_test" class="btn btn-info">Start Test</a>
+<button class="btn btn-info" onclick="startExam()">Start Test</button>
 {% endif %}
 
 </div>
@@ -265,7 +265,7 @@ Analyze your performance and track your progress based on your test results.
 <a href="/performance" class="btn btn-dashboard">
 View Results
 </a>
-</a>
+
 </div>
 
 </div>
@@ -322,6 +322,26 @@ onhover:{enable:true,mode:"repulse"}
 }
 
 });
+
+
+let examStarted = false;
+
+function startExam() {
+
+    if (examStarted) return;
+    examStarted = true;
+
+    document.documentElement.requestFullscreen()
+    .catch(() => {})
+    .finally(() => {
+        if (!document.fullscreenElement) {
+            alert("⚠️ Fullscreen is mandatory!");
+            examStarted = false;
+            return;
+        }
+        window.location.href = "/mcq_test";
+    });
+}
 
 </script>
 

@@ -305,11 +305,18 @@ if(Object.keys(answers).length<18){
 alert("⚠️ Complete all 18 MCQs first");
 return;
 }
-window.location.href="/coding_editor/1";
+
+isNavigating = true;
+
+document.exitFullscreen().catch(()=>{}).finally(() => {
+    window.location.href="/coding_editor/1";
+});
 }
 
-// SUBMIT
 function submitExam(){
+
+window.onbeforeunload = null; // ✅ disable warning
+
 if(Object.keys(answers).length<18){
 alert("⚠️ Answer all 18 questions before submitting");
 return;
@@ -328,9 +335,12 @@ form.appendChild(input);
 }
 
 document.body.appendChild(form);
-form.submit();
-}
+isNavigating = true;
 
+document.exitFullscreen().catch(()=>{}).finally(() => {
+    form.submit();
+});
+}
 // TIMER
 let time=1800;
 let timerInterval=setInterval(()=>{
@@ -349,16 +359,131 @@ else if(time<=600) el.classList.add("timer-warning");
 if(time<=0){
 clearInterval(timerInterval);
 alert("Time up! Redirecting...");
-window.location.href="/coding_editor/1";
+
+    isNavigating = true;
+
+document.exitFullscreen().catch(()=>{}).finally(() => {
+    window.location.href="/coding_editor/1";
+});
+
 }
 
 },1000);
 
 // START
-window.onload=()=>{
-document.documentElement.requestFullscreen().catch(()=>{});
-load();
+window.addEventListener("load", () => {
+
+    load();
+
+    document.documentElement.requestFullscreen()
+    .then(() => {
+        setTimeout(() => {
+            if (!document.fullscreenElement) {
+                alert("⚠️ Fullscreen is mandatory!");
+                window.location.href = "/dashboard";
+            }
+        }, 1000);
+    })
+    .catch(() => {
+        alert("⚠️ Fullscreen permission denied");
+        window.location.href = "/dashboard";
+    });
+
+});
+// ================== 🚨 ANTI CHEAT ==================
+// ================== 🚨 ANTI CHEAT ==================
+let violationCount = 0;
+let violationLock = false;
+let isNavigating = false;   // ✅ ADD THIS
+
+function handleViolation(reason) {
+
+    if (violationLock || isNavigating) return;   // 🚨 STOP MULTIPLE TRIGGERS
+
+    violationLock = true;
+
+    violationCount++;
+
+    alert(`⚠️ Warning ${violationCount}/3: ${reason}`);
+
+    fetch('/log_violation', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({reason: reason})
+    });
+
+    if (violationCount >= 3) {
+    alert("Test auto-submitted due to cheating!");
+    document.exitFullscreen().catch(()=>{}).finally(() => {
+        window.location.href = "/final_submit";
+    });
+}
+
+    // 🔓 unlock after 2 sec
+    setTimeout(() => {
+        violationLock = false;
+    }, 2000);
+}
+
+// 🔴 EXIT FULLSCREEN
+document.addEventListener("fullscreenchange", () => {
+    if (!document.fullscreenElement && !violationLock && !isNavigating) {
+        handleViolation("Exited Fullscreen");
+    }
+});
+
+// 🔴 TAB SWITCH
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden && !isNavigating)  {
+        handleViolation("Tab switched");
+    }
+});
+
+// 🔴 ALT+TAB
+window.addEventListener("blur", () => {
+    if (!document.hidden || isNavigating) return;  // 🚨 avoid alert loop
+    handleViolation("Window focus lost");
+});
+
+// 🔴 BLOCK COPY / PASTE / CUT
+document.addEventListener("copy", e => e.preventDefault());
+document.addEventListener("paste", e => e.preventDefault());
+document.addEventListener("cut", e => e.preventDefault());
+
+// 🔴 BLOCK RIGHT CLICK
+document.addEventListener("contextmenu", e => e.preventDefault());
+
+// 🔴 BLOCK KEYS
+document.addEventListener("keydown", function (e) {
+
+    let key = e.key.toLowerCase();
+
+    if (
+    (e.ctrlKey && ["c","v","x","a","r"].includes(key)) ||
+    e.key === "F12" ||
+    e.key === "F5" ||
+    e.key === "Escape"
+) {
+        e.preventDefault();
+        handleViolation("Blocked key usage");
+    }
+});
+
+
+
+window.onbeforeunload = function () {
+    return "Are you sure you want to leave the exam?";
 };
+// 🔴 MULTIPLE TAB DETECTION
+setInterval(() => {
+    localStorage.setItem("exam_active", Date.now());
+}, 1000);
+
+window.addEventListener("storage", (e) => {
+    if (e.key === "exam_active" && !violationLock) {
+        handleViolation("Multiple tabs detected");
+    }
+});
 
 </script>
 

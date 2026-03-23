@@ -118,6 +118,22 @@ require.config({
 paths:{vs:'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs'}
 });
 
+// 🔒 FORCE FULLSCREEN AGAIN
+window.addEventListener("load", () => {
+
+    updateButton();
+
+    // ✅ try entering fullscreen again
+    document.documentElement.requestFullscreen()
+.then(() => {
+    console.log("Fullscreen entered for coding");
+})
+.catch(() => {
+    // ⚠️ do NOT block user
+    console.log("Fullscreen denied, continuing...");
+});
+});
+
 let editor;
 
 require(["vs/editor/editor.main"],function(){
@@ -252,21 +268,32 @@ outputBox.scrollTop = outputBox.scrollHeight
 
 // ================= TIMER =================
 let time = 1800;
-function startTimer() {
-let timer = setInterval(() => {
-let minutes = Math.floor(time / 60);
-let seconds = time % 60;
-seconds = seconds < 10 ? "0" + seconds : seconds;
-document.getElementById("time").innerText = minutes + ":" + seconds;
 
-if (time <= 0) {
-clearInterval(timer);
-alert("Time Up!");
-window.location.href = "/final_submit";
+function startTimer() {
+    let timer = setInterval(() => {
+
+        let minutes = Math.floor(time / 60);
+        let seconds = time % 60;
+        seconds = seconds < 10 ? "0" + seconds : seconds;
+
+        document.getElementById("time").innerText = minutes + ":" + seconds;
+
+        if (time <= 0) {
+            clearInterval(timer);
+            alert("Time Up!");
+
+            isNavigating = true;
+
+            document.exitFullscreen().catch(()=>{}).finally(() => {
+            window.location.href = "/final_submit";
+});
+        }
+
+        time--;
+
+    }, 1000);
 }
-time--;
-}, 1000);
-}
+
 startTimer();
 
 
@@ -306,14 +333,21 @@ let totalQuestions = {{ total_questions | default(5) }};
 function handleNext() {
 
     if (currentQuestion === totalQuestions - 1) {
-        // LAST QUESTION → SUBMIT TEST
+
         let confirmSubmit = confirm("Are you sure you want to finish the test? You cannot change answers after this.");
         
         if (confirmSubmit) {
-            window.location.href = "/final_submit";
-        }
+
+    isNavigating = true;   // ✅ ADD THIS
+
+    document.exitFullscreen().catch(()=>{}).finally(() => {
+        window.location.href = "/final_submit";
+    });
+}
     } else {
         // MOVE NEXT QUESTION
+        isNavigating = true;
+
         window.location.href = "/next_question";
     }
 }
@@ -327,9 +361,105 @@ function updateButton() {
     }
 }
 
-window.onload = function () {
-    updateButton();
-};
+let violationCount = 0;
+let violationLock = false;
+let isNavigating = false;   // ✅ ADD THIS
+
+// 🚨 VIOLATION SYSTEM
+
+
+function handleViolation(reason) {
+
+    if (violationLock || isNavigating) return;// 🚨 prevent multiple triggers
+
+    violationLock = true;
+
+    violationCount++;
+
+    console.log(`⚠️ Warning ${violationCount}/3: ${reason}`);
+
+    alert(`⚠️ Warning ${violationCount}/3: ${reason}`);
+
+    fetch('/log_violation', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({reason: reason})
+    });
+
+    if (violationCount >= 3) {
+    alert("Test auto-submitted due to cheating!");
+    isNavigating = true;
+
+    document.exitFullscreen().catch(()=>{}).finally(() => {
+    window.location.href = "/final_submit";
+});
+}
+
+    // unlock after delay
+    setTimeout(() => {
+        violationLock = false;
+    }, 2000);
+}
+
+// 🔴 EXIT FULLSCREEN
+document.addEventListener("fullscreenchange", () => {
+    if (!document.fullscreenElement && !violationLock && !isNavigating) {
+        handleViolation("Exited Fullscreen");
+    }
+});
+
+// 🔴 TAB SWITCH
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden && !isNavigating) {
+        handleViolation("Tab switched");
+    }
+});
+
+// 🔴 ALT + TAB
+window.addEventListener("blur", () => {
+    if (!document.hidden || isNavigating) return;
+    handleViolation("Window focus lost");
+});
+
+// 🔴 DISABLE COPY PASTE (BUT ALLOW INSIDE EDITOR)
+document.addEventListener("copy", e => e.preventDefault());
+document.addEventListener("cut", e => e.preventDefault());
+
+// ⚠️ IMPORTANT: allow paste ONLY inside editor
+// document.addEventListener("paste", function(e){
+//     if (!e.target.closest(".monaco-editor")) {
+//         e.preventDefault();
+//     }
+// });
+
+// 🔴 BLOCK KEYS
+document.addEventListener("keydown", function (e) {
+
+    let key = e.key.toLowerCase();
+
+    if (
+        (e.ctrlKey && ["c","x"].includes(key)) || // block copy & cut
+        e.key === "F12" ||                        // block dev tools
+        e.key === "Escape"                        // block ESC fullscreen exit
+    ) {
+        e.preventDefault();
+        handleViolation("Blocked key usage");
+    }
+
+});
+
+// 🔴 MULTIPLE TAB DETECTION
+setInterval(() => {
+    localStorage.setItem("exam_active", Date.now());
+}, 1000);
+
+window.addEventListener("storage", (e) => {
+    if (e.key === "exam_active" && !violationLock) {
+        handleViolation("Multiple tabs detected");
+    }
+});
+
+document.addEventListener("contextmenu", e => e.preventDefault());
 </script>
 </body>
 </html>
