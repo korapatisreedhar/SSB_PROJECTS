@@ -204,23 +204,27 @@ def final_submit():
         return redirect("/")
 
     user_id = session.get("user_id")
-    cheated = session.get("violations", 0) >= 3
 
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
-    # coding score
+    # ✅ GET CHEATING FROM DB (NOT SESSION)
+    cur.execute("SELECT cheated FROM mcq_results WHERE user_id=?", (user_id,))
+    data = cur.fetchone()
+    cheated = data[0] if data else 0
+
+    # CODING SCORE
     cur.execute("SELECT AVG(score) FROM coding_results WHERE user_id=?", (user_id,))
     coding_score = cur.fetchone()[0] or 0
 
-    # mcq score
+    # MCQ SCORE
     cur.execute("SELECT score FROM mcq_results WHERE user_id=?", (user_id,))
     mcq = cur.fetchone()
     mcq_score = mcq[0] if mcq else 0
 
     total_score = int((mcq_score * 2) + coding_score)
 
-    # save result
+    # SAVE FINAL RESULT
     cur.execute("""
         UPDATE users 
         SET test_completed = 1,
@@ -232,7 +236,7 @@ def final_submit():
     conn.commit()
     conn.close()
 
-    # clear exam session only
+    # CLEAR EXAM SESSION
     session.pop("coding_questions", None)
     session.pop("current_index", None)
     session.pop("total_questions", None)
@@ -243,21 +247,14 @@ def final_submit():
 @app.route("/video_interview")
 def video_interview():
     return render_template("video_interview.html")
+
 @app.route("/performance")
 def performance():
 
-    email = session.get("email")
-
-    if not email:
+    if "email" not in session:
         return redirect("/")
 
-    # 👉 only show message, don't block app
-    if session.get("violations", 0) >= 3:
-        return render_template("performance.html",
-                               coding_score=0,
-                               mcq_score=0,
-                               overall=0,
-                               disqualified=True)
+    email = session.get("email")
 
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
@@ -270,18 +267,21 @@ def performance():
 
     user_id = user[0]
 
-    # CODING
+    # 🚨 CHEATING STATUS
+    cur.execute("SELECT cheated FROM mcq_results WHERE user_id=?", (user_id,))
+    cheat_data = cur.fetchone()
+    cheated = cheat_data[0] if cheat_data else 0
+
+    # ================= CODING =================
     cur.execute("SELECT score FROM coding_results WHERE user_id=?", (user_id,))
     coding_scores = cur.fetchall()
 
     total_questions = 2
-
     coding_score = sum([s[0] for s in coding_scores]) / total_questions if coding_scores else 0
 
-    # MCQ
+    # ================= MCQ =================
     cur.execute("SELECT score FROM mcq_results WHERE user_id=?", (user_id,))
     mcq = cur.fetchone()
-
     mcq_score = mcq[0] if mcq else 0
 
     domain = session.get("domain")
@@ -291,15 +291,31 @@ def performance():
 
     mcq_percentage = (mcq_score / total_mcq) * 100 if total_mcq else 0
 
+    # ================= INTERVIEW =================
+    cur.execute("SELECT score FROM interviews WHERE candidate_id=?", (user_id,))
+    interview = cur.fetchone()
+    interview_score = interview[0] if interview else 0
+
+    # ================= FINAL SCORE =================
     overall = int((mcq_percentage * 0.6) + (coding_score * 0.4))
+
+    # ================= STATUS =================
+    if overall >= 75:
+        status = "Selected"
+    elif overall >= 50:
+        status = "On Hold"
+    else:
+        status = "Rejected"
 
     conn.close()
 
     return render_template("performance.html",
                            coding_score=int(coding_score),
                            mcq_score=int(mcq_percentage),
+                           interview_score=int(interview_score),
                            overall=overall,
-                           disqualified=False)
+                           status=status,
+                           disqualified=cheated)
 # ===============================
 # ADMIN PANEL ROUTES
 # ===============================
@@ -877,7 +893,6 @@ def view_mcq_questions():
 @app.route("/mcq_test")
 def mcq_test():
 
-    # ✅ LOGIN CHECK
     if "email" not in session:
         return redirect("/")
 
@@ -886,20 +901,15 @@ def mcq_test():
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
-    # ✅ CHECK MCQ
+    # 🔒 BLOCK REATTEMPT (IMPORTANT)
     cur.execute("SELECT score FROM mcq_results WHERE user_id=?", (user_id,))
     mcq_done = cur.fetchone()
 
-    # ✅ CHECK CODING COUNT (IMPORTANT FIX)
-    cur.execute("SELECT COUNT(*) FROM coding_results WHERE user_id=?", (user_id,))
-    coding_count = cur.fetchone()[0]
-
-    # ✅ BLOCK ONLY IF FULL TEST COMPLETED
-    if mcq_done and coding_count >= 2:
+    if mcq_done:
         conn.close()
-        return "<h2 style='text-align:center;margin-top:100px;'>✅ Your test is already submitted</h2>"
+        return "<h2 style='text-align:center;margin-top:100px;'>❌ You already attempted the exam</h2>"
 
-    # ================= DOMAIN LOGIC =================
+    # DOMAIN LOGIC
     domain = session.get("domain")
 
     if not domain:
@@ -908,7 +918,6 @@ def mcq_test():
 
     domain = domain.strip()
 
-    # ✅ CASE-INSENSITIVE MATCH
     cur.execute(
         "SELECT * FROM mcq_questions WHERE LOWER(domain)=LOWER(?)",
         (domain,)
@@ -916,10 +925,6 @@ def mcq_test():
 
     questions = cur.fetchall()
     conn.close()
-
-    # ✅ DEBUG
-    print("User domain:", domain)
-    print("Questions found:", len(questions))
 
     if not questions:
         return f"No MCQ questions found for domain: {domain}"
@@ -930,52 +935,47 @@ def mcq_test():
 @app.route("/submit_mcq", methods=["POST"])
 def submit_mcq():
 
-    # ✅ LOGIN CHECK
     if "user_id" not in session:
         return redirect("/")
 
-    score = 0
-    domain = session.get("domain")
     user_id = session.get("user_id")
+    domain = session.get("domain")
 
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
-    # ✅ get only domain questions
     cur.execute(
         "SELECT * FROM mcq_questions WHERE domain=?",
         (domain,)
     )
     questions = cur.fetchall()
 
-    # ================= CHECK ALL ANSWERED =================
-    answered_count = 0
-
+    # CHECK ALL ANSWERED
     for q in questions:
-        user_answer = request.form.get(f"q{q[0]}")
-        if user_answer:
-            answered_count += 1
+        if not request.form.get(f"q{q[0]}"):
+            conn.close()
+            return "Please answer all questions before submitting"
 
-    if answered_count < len(questions):
-        conn.close()
-        return "Please answer all questions before submitting"
-
-    # ================= CALCULATE SCORE =================
+    # CALCULATE SCORE
+    score = 0
     for q in questions:
         user_answer = request.form.get(f"q{q[0]}")
         if user_answer == q[7]:
             score += 1
 
-    # ✅ save in session
+    # 🚨 CHEATING FLAG
+    cheated = 1 if session.get("violations", 0) >= 3 else 0
+
+    # SAVE SESSION
     session["mcq_score"] = score
 
-    # ================= SAVE IN DATABASE =================
     try:
         cur.execute("""
-        INSERT INTO mcq_results(user_id, score)
-        VALUES(?,?)
-        ON CONFLICT(user_id) DO UPDATE SET score=excluded.score
-        """, (user_id, score))
+        INSERT INTO mcq_results(user_id, score, cheated)
+        VALUES(?,?,?)
+        ON CONFLICT(user_id)
+        DO UPDATE SET score=excluded.score, cheated=excluded.cheated
+        """, (user_id, score, cheated))
 
         conn.commit()
 
@@ -985,9 +985,10 @@ def submit_mcq():
 
     conn.close()
 
-    # ✅ go to coding test
-    return redirect("/start_coding_test")
+    # 🔥 RESET CHEATING SESSION
+    session.pop("violations", None)
 
+    return redirect("/start_coding_test")
 # @app.route("/coding_test")
 # def coding_test():
 

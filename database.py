@@ -127,13 +127,20 @@ FOREIGN KEY(question_id) REFERENCES mcq_questions(id)
     )
     """)
 
-    # MCQ RESULTS TABLE
+    # ✅ UPDATED MCQ RESULTS TABLE (ONLY CHANGE)
     cur.execute("""
 CREATE TABLE IF NOT EXISTS mcq_results (
     user_id INTEGER PRIMARY KEY,
-    score INTEGER
+    score INTEGER,
+    cheated INTEGER DEFAULT 0
 )
 """)
+
+    # ✅ SAFE ADD FOR OLD DATABASE
+    try:
+        cur.execute("ALTER TABLE mcq_results ADD COLUMN cheated INTEGER DEFAULT 0")
+    except:
+        pass
 
     # CREATE DEFAULT ADMIN
     cur.execute("SELECT id FROM users WHERE email = ?", ("admin@gmail.com",))
