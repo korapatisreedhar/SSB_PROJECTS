@@ -188,6 +188,9 @@ style="height:40px; margin-right:10px;">
 <!-- MAIN -->
 <div class="main">
 <div class="card-box">
+    <div class="text-center mb-4">
+    <button type="button" class="btn btn-primary" onclick="startExam()">Start Exam</button>
+</div>
 
 <div id="section"></div>
 <div id="qnum"></div>
@@ -237,12 +240,37 @@ let questions = {{ questions | tojson }};
 
 <script>
 
+let examStarted = false;
 let index=0;
 let answers={};
 let total=questions.length;
 
-// LOAD
+function startExam(){
+
+    let elem = document.body;
+
+    if (elem.requestFullscreen) {
+        elem.requestFullscreen();
+    }
+
+    examStarted = true;
+
+    // ✅ disable button after click
+    document.querySelector("button").disabled = true;
+
+    load();
+}
+
 function load(){
+
+if(!examStarted){
+    document.getElementById("section").innerText="";
+    document.getElementById("qnum").innerText="";
+    document.getElementById("question").innerText="⚠️ Click Start Exam to begin";
+    document.getElementById("options").innerHTML="";
+    return;
+}
+
 let q=questions[index];
 
 let sec="";
@@ -268,6 +296,9 @@ highlight();
 
 // SELECT
 function select(opt,el){
+
+if(!checkStart()) return;
+
 answers[index]=opt;
 document.querySelectorAll(".option").forEach(o=>o.classList.remove("selected"));
 el.classList.add("selected");
@@ -295,12 +326,34 @@ else btn.classList.add("not-answered");
 }
 
 // NAV
-function next(){ if(index<total-1){ index++; load(); }}
-function prev(){ if(index>0){ index--; load(); }}
-function goTo(i){ index=i; load(); }
+function checkStart(){
+if(!examStarted){
+    alert("⚠️ Click Start Exam first");
+    return false;
+}
+return true;
+}
+
+function next(){
+if(!checkStart()) return;
+if(index<total-1){ index++; load(); }
+}
+
+function prev(){
+if(!checkStart()) return;
+if(index>0){ index--; load(); }
+}
+
+function goTo(i){
+if(!checkStart()) return;
+index=i; load();
+}
 
 // CODING ACCESS
 function goToCoding(){
+
+if(!checkStart()) return;
+
 if(Object.keys(answers).length<18){
 alert("⚠️ Complete all 18 MCQs first");
 return;
@@ -308,14 +361,17 @@ return;
 
 isNavigating = true;
 
-document.exitFullscreen().catch(()=>{}).finally(() => {
-    window.location.href="/coding_editor/1";
-});
+if (document.fullscreenElement) {
+    document.exitFullscreen();
+}
+window.location.href="/coding_editor/1";
 }
 
 function submitExam(){
 
-window.onbeforeunload = null; // ✅ disable warning
+if(!checkStart()) return;
+
+window.onbeforeunload = null;
 
 if(Object.keys(answers).length<18){
 alert("⚠️ Answer all 18 questions before submitting");
@@ -337,9 +393,10 @@ form.appendChild(input);
 document.body.appendChild(form);
 isNavigating = true;
 
-document.exitFullscreen().catch(()=>{}).finally(() => {
-    form.submit();
-});
+if (document.fullscreenElement) {
+    document.exitFullscreen();
+}
+form.submit();
 }
 // TIMER
 let time=1800;
@@ -362,34 +419,17 @@ alert("Time up! Redirecting...");
 
     isNavigating = true;
 
-document.exitFullscreen().catch(()=>{}).finally(() => {
-    window.location.href="/coding_editor/1";
-});
+if (document.fullscreenElement) {
+    document.exitFullscreen();
+}
+window.location.href="/coding_editor/1";
 
 }
 
 },1000);
 
 // START
-window.addEventListener("load", () => {
 
-    load();
-
-    document.documentElement.requestFullscreen()
-    .then(() => {
-        setTimeout(() => {
-            if (!document.fullscreenElement) {
-                alert("⚠️ Fullscreen is mandatory!");
-                window.location.href = "/dashboard";
-            }
-        }, 1000);
-    })
-    .catch(() => {
-        alert("⚠️ Fullscreen permission denied");
-        window.location.href = "/dashboard";
-    });
-
-});
 // ================== 🚨 ANTI CHEAT ==================
 // ================== 🚨 ANTI CHEAT ==================
 let violationCount = 0;
@@ -414,9 +454,10 @@ function handleViolation(reason) {
 
     if (violationCount >= 3) {
     alert("Test auto-submitted due to cheating!");
-    document.exitFullscreen().catch(()=>{}).finally(() => {
-        window.location.href = "/final_submit";
-    });
+   if (document.fullscreenElement) {
+    document.exitFullscreen();
+}
+window.location.href = "/final_submit";
 }
 
     // 🔓 unlock after 2 sec
@@ -441,8 +482,9 @@ document.addEventListener("visibilitychange", () => {
 
 // 🔴 ALT+TAB
 window.addEventListener("blur", () => {
-    if (!document.hidden || isNavigating) return;  // 🚨 avoid alert loop
-    handleViolation("Window focus lost");
+    if (document.hidden && !isNavigating) {
+        handleViolation("Window focus lost");
+    }
 });
 
 // 🔴 BLOCK COPY / PASTE / CUT
@@ -484,6 +526,8 @@ window.addEventListener("storage", (e) => {
         handleViolation("Multiple tabs detected");
     }
 });
+
+window.onload = load;
 
 </script>
 
