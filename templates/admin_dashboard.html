@@ -190,6 +190,17 @@ width:100%;
 
 <div class="col-md-3">
 <div class="stat-card">
+<i class="fa fa-exclamation-triangle stat-icon text-danger"></i>
+<h3 class="mt-2">
+{% set cheat_count = candidates | selectattr('5', 'equalto', 1) | list | length %}
+{{ cheat_count }}
+</h3>
+<p>Cheating Cases</p>
+</div>
+</div>
+
+<div class="col-md-3">
+<div class="stat-card">
 <i class="fa fa-code stat-icon"></i>
 <h3 class="mt-2">{{ coding_tests or 0 }}</h3>
 <p>Coding Tests</p>
@@ -220,19 +231,19 @@ width:100%;
 
 <h4>Recent Candidates</h4>
 
-<table class="table table-striped">
+<table class="table table-striped text-center">
 
 <thead>
-
 <tr>
 <th>Name</th>
 <th>Email</th>
-<th>Coding Score</th>
-<th>Interview Score</th>
+<th>Coding</th>
+<th>MCQ</th>
+<th>Interview</th>
 <th>Status</th>
-<th>Interview Video</th>
+<th>Cheating</th>
+<th>Video</th>
 </tr>
-
 </thead>
 
 <tbody>
@@ -240,34 +251,53 @@ width:100%;
 {% for c in candidates %}
 
 <tr>
+
 <td>{{ c[0] }}</td>
 <td>{{ c[1] }}</td>
-<td>{{ c[2] }}</td>
-<td>{{ c[3] }}</td>
+
+<td>
+{{ c[2]|default(0) }}%
+{% if c[2] >= 80 %}
+<span class="badge bg-success">Top</span>
+{% endif %}
+</td>
+<td>{{ c[3]|default(0) }}</td>
+<td>{{ c[4]|default(0) }}%</td>
+
+<!-- STATUS -->
+<td>
+{% if c[5] == 1 %}
+<span class="badge bg-danger">Cheated</span>
+{% elif c[6] == "Completed" %}
+<span class="badge bg-success">Completed</span>
+{% else %}
+<span class="badge bg-warning">Pending</span>
+{% endif %}
+</td>
+
+<!-- CHEATING -->
+<td>
+{% if c[5] == 1 %}
+<span class="badge bg-danger">Cheated</span>
+{% else %}
+<span class="badge bg-success">Clean</span>
+{% endif %}
+</td>
+
 <td>
 
-{% if c[4] == "cheated" %}
 
-<span class="badge bg-danger">Cheated</span>
-
-{% elif c[4] == "completed" %}
-
-<span class="badge bg-success">Completed</span>
-
-{% else %}
-
-<span class="badge bg-warning">Pending</span>
-
-{% endif %}
-
-</td>
+<!-- VIDEO -->
 <td>
 <video width="200" controls>
-<source src="{{ url_for('static', filename='interview_videos/interview_' ~ c[5] ~ '.webm') }}" type="video/webm">
+<source src="{{ url_for('static', filename='interview_videos/interview_' ~ c[7] ~ '.webm') }}" type="video/webm">
 </video>
 </td>
+
 </tr>
+
 {% endfor %}
+
 </tbody>
 </table>
 </div>

@@ -197,6 +197,8 @@ def next_question():
         return redirect(f"/coding_editor/{questions[index]}")
     else:
         return redirect("/final_submit")
+    
+
 @app.route("/final_submit")
 def final_submit():
 
@@ -208,35 +210,89 @@ def final_submit():
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
-    # ✅ GET CHEATING FROM DB (NOT SESSION)
+    # ===============================
+    # 🔥 1. MCQ CHEATING
+    # ===============================
     cur.execute("SELECT cheated FROM mcq_results WHERE user_id=?", (user_id,))
     data = cur.fetchone()
-    cheated = data[0] if data else 0
+    mcq_cheated = data[0] if data else 0
 
-    # CODING SCORE
+    # ===============================
+    # 🔥 2. CODING CHEATING (SESSION)
+    # ===============================
+    coding_cheated = 1 if session.get("violations", 0) >= 3 else 0
+
+    # ===============================
+    # 🔥 3. INTERVIEW STATUS + CHEATING (FIXED)
+    # ===============================
+    cur.execute("SELECT status FROM interviews WHERE candidate_id=?", (user_id,))
+    interview = cur.fetchone()
+
+    interview_cheated = 0
+
+    if interview:
+        interview_status = str(interview[0]).strip().lower()
+
+        if interview_status == "cheated":
+            interview_cheated = 1
+
+    # ===============================
+    # 🔥 4. FINAL CHEATED FLAG
+    # ===============================
+    cheated = 1 if (mcq_cheated or coding_cheated or interview_cheated) else 0
+
+    # ===============================
+    # 🔥 5. SCORES
+    # ===============================
     cur.execute("SELECT AVG(score) FROM coding_results WHERE user_id=?", (user_id,))
     coding_score = cur.fetchone()[0] or 0
 
-    # MCQ SCORE
     cur.execute("SELECT score FROM mcq_results WHERE user_id=?", (user_id,))
     mcq = cur.fetchone()
     mcq_score = mcq[0] if mcq else 0
 
     total_score = int((mcq_score * 2) + coding_score)
 
-    # SAVE FINAL RESULT
+    # ===============================
+    # 🔥 6. UPDATE USERS TABLE
+    # ===============================
     cur.execute("""
         UPDATE users 
         SET test_completed = 1,
             cheated = ?,
             score = ?
         WHERE id = ?
-    """, (int(cheated), total_score, user_id))
+    """, (cheated, total_score, user_id))
+
+    # ===============================
+    # 🔥 7. FIX INTERVIEW STATUS (FIXED)
+    # ===============================
+    cur.execute("SELECT id, status FROM interviews WHERE candidate_id=?", (user_id,))
+    existing = cur.fetchone()
+
+    if existing:
+        current_status = str(existing[1]).strip().lower()
+
+        # ❗ DO NOT OVERRIDE IF CHEATED
+        if current_status != "cheated":
+            cur.execute("""
+                UPDATE interviews
+                SET status = 'Completed'
+                WHERE candidate_id = ?
+            """, (user_id,))
+    else:
+        # if no interview record → create one
+        cur.execute("""
+            INSERT INTO interviews (candidate_id, status, score)
+            VALUES (?, 'Completed', 0)
+        """, (user_id,))
 
     conn.commit()
     conn.close()
 
-    # CLEAR EXAM SESSION
+    # ===============================
+    # 🔥 8. CLEAR SESSION
+    # ===============================
     session.pop("coding_questions", None)
     session.pop("current_index", None)
     session.pop("total_questions", None)
@@ -244,9 +300,15 @@ def final_submit():
 
     return redirect("/performance")
 
+
+
+
+
+
 @app.route("/video_interview")
 def video_interview():
     return render_template("video_interview.html")
+
 
 @app.route("/performance")
 def performance():
@@ -267,19 +329,19 @@ def performance():
 
     user_id = user[0]
 
-    # 🚨 CHEATING STATUS
-    cur.execute("SELECT cheated FROM mcq_results WHERE user_id=?", (user_id,))
+    # 🔥 FIX: GET FROM USERS TABLE
+    cur.execute("SELECT cheated FROM users WHERE id=?", (user_id,))
     cheat_data = cur.fetchone()
     cheated = cheat_data[0] if cheat_data else 0
 
-    # ================= CODING =================
+    # CODING
     cur.execute("SELECT score FROM coding_results WHERE user_id=?", (user_id,))
     coding_scores = cur.fetchall()
 
     total_questions = 2
     coding_score = sum([s[0] for s in coding_scores]) / total_questions if coding_scores else 0
 
-    # ================= MCQ =================
+    # MCQ
     cur.execute("SELECT score FROM mcq_results WHERE user_id=?", (user_id,))
     mcq = cur.fetchone()
     mcq_score = mcq[0] if mcq else 0
@@ -291,15 +353,14 @@ def performance():
 
     mcq_percentage = (mcq_score / total_mcq) * 100 if total_mcq else 0
 
-    # ================= INTERVIEW =================
+    # INTERVIEW
     cur.execute("SELECT score FROM interviews WHERE candidate_id=?", (user_id,))
     interview = cur.fetchone()
     interview_score = interview[0] if interview else 0
 
-    # ================= FINAL SCORE =================
+    # FINAL
     overall = int((mcq_percentage * 0.6) + (coding_score * 0.4))
 
-    # ================= STATUS =================
     if overall >= 75:
         status = "Selected"
     elif overall >= 50:
@@ -319,7 +380,6 @@ def performance():
 # ===============================
 # ADMIN PANEL ROUTES
 # ===============================
-
 @app.route("/admin_dashboard")
 def admin_dashboard():
 
@@ -338,23 +398,37 @@ def admin_dashboard():
     cur.execute("SELECT COUNT(*) FROM interviews WHERE status='Selected'")
     selected_candidates = cur.fetchone()[0]
 
+    # 🔥 FIXED QUERY
     cur.execute("""
-SELECT 
-    users.name,
-    users.email,
-    COALESCE(submissions.score,0),
-    COALESCE(interviews.score,0),
-    COALESCE(interviews.status,'Pending'),
-    users.id
-FROM users
-LEFT JOIN submissions 
-ON users.id=submissions.user_id
-LEFT JOIN interviews 
-ON users.id=interviews.candidate_id
-WHERE users.role='candidate'
-GROUP BY users.id
-ORDER BY users.id DESC LIMIT 5
-""")
+    SELECT 
+        u.name,
+        u.email,
+
+        IFNULL(AVG(c.score), 0) as coding_score,
+        IFNULL(m.score, 0) as mcq_score,
+        IFNULL(i.score, 0) as interview_score,
+
+        IFNULL(u.cheated, 0) as cheated,
+
+        CASE 
+            WHEN i.status IS NULL THEN 'Pending'
+            ELSE i.status
+        END as status,
+
+        u.id
+
+    FROM users u
+
+    LEFT JOIN coding_results c ON u.id = c.user_id
+    LEFT JOIN mcq_results m ON u.id = m.user_id
+    LEFT JOIN interviews i ON u.id = i.candidate_id
+
+    WHERE u.role='candidate'
+
+    GROUP BY u.id
+    ORDER BY u.id DESC
+    LIMIT 5
+    """)
 
     candidates = cur.fetchall()
 
@@ -1217,16 +1291,20 @@ def submit_interview():
 
     data = request.get_json()
 
-    print("Interview route called")
-    print("Data received:", data)
-
     if not data:
         return {"status": "error", "message": "No data received"}
 
-    status = data.get("status", "completed")   # completed or cheated
+    # 🔥 IMPORTANT FIX
+    raw_status = data.get("status", "completed")
+
+    if str(raw_status).lower() == "cheated":
+        status = "Cheated"
+    else:
+        status = "Completed"
+
     answer_length = data.get("answer_length", 0)
 
-    # communication score based on speaking length
+    # score logic
     if answer_length < 50:
         communication_score = 20
     elif answer_length < 150:
@@ -1247,27 +1325,32 @@ def submit_interview():
     if user:
         user_id = user[0]
 
-        # check if interview already exists
         cur.execute("SELECT id FROM interviews WHERE candidate_id=?", (user_id,))
         existing = cur.fetchone()
 
         if existing:
             cur.execute("""
-            UPDATE interviews
-            SET status=?, score=?
-            WHERE candidate_id=?
+                UPDATE interviews
+                SET status=?, score=?
+                WHERE candidate_id=?
             """, (status, communication_score, user_id))
         else:
             cur.execute("""
-            INSERT INTO interviews (candidate_id, status, score)
-            VALUES (?, ?, ?)
+                INSERT INTO interviews (candidate_id, status, score)
+                VALUES (?, ?, ?)
             """, (user_id, status, communication_score))
+
+        # 🔥 ALSO UPDATE USERS TABLE IF CHEATED
+        if status == "Cheated":
+            cur.execute("UPDATE users SET cheated=1 WHERE id=?", (user_id,))
 
         conn.commit()
 
     conn.close()
 
     return {"status": "ok"}
+
+
 
 import subprocess
 import tempfile
@@ -1389,8 +1472,18 @@ def run_code():
 # sudmit
 @app.route("/submit_code", methods=["POST"])
 def submit_code():
-    # 🚨 CHEAT BLOCK
+
+    # 🔥 FIX: SAVE CODING CHEATING TO DB
     if session.get("violations", 0) >= 3:
+
+        conn = sqlite3.connect("database.db")
+        cur = conn.cursor()
+
+        cur.execute("UPDATE users SET cheated=1 WHERE id=?", (session["user_id"],))
+
+        conn.commit()
+        conn.close()
+
         return jsonify({"error": "❌ Disqualified due to cheating"})
 
     data = request.json
