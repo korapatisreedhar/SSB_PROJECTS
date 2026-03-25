@@ -172,6 +172,8 @@ width:100%;
 
 <a href="/view_questions">📄 View Questions</a>
 
+<a href="/final_results">🏆 Final Results</a>
+
 </div>
 
 <div class="col-md-10 main-area">
@@ -188,16 +190,7 @@ width:100%;
 </div>
 </div>
 
-<div class="col-md-3">
-<div class="stat-card">
-<i class="fa fa-exclamation-triangle stat-icon text-danger"></i>
-<h3 class="mt-2">
-{% set cheat_count = candidates | selectattr('5', 'equalto', 1) | list | length %}
-{{ cheat_count }}
-</h3>
-<p>Cheating Cases</p>
-</div>
-</div>
+
 
 <div class="col-md-3">
 <div class="stat-card">
@@ -223,6 +216,14 @@ width:100%;
 </div>
 </div>
 
+<div class="col-md-3">
+<div class="stat-card">
+<i class="fa fa-times-circle stat-icon text-danger"></i>
+<h3 class="mt-2">{{ rejected_candidates or 0 }}</h3>
+<p>Rejected Candidates</p>
+</div>
+</div>
+
 </div>
 
 <br>
@@ -240,8 +241,8 @@ width:100%;
 <th>Coding</th>
 <th>MCQ</th>
 <th>Interview</th>
-<th>Status</th>
-<th>Cheating</th>
+<th>Interview Status</th>
+<th>Final Result</th>
 <th>Video</th>
 </tr>
 </thead>
@@ -265,22 +266,29 @@ width:100%;
 <td>{{ c[4]|default(0) }}%</td>
 
 <!-- STATUS -->
+<!-- INTERVIEW STATUS -->
 <td>
-{% if c[5] == 1 %}
+{% if c[5] == "Cheated" %}
 <span class="badge bg-danger">Cheated</span>
-{% elif c[6] == "Completed" %}
+{% elif c[5] == "Completed" %}
 <span class="badge bg-success">Completed</span>
 {% else %}
 <span class="badge bg-warning">Pending</span>
 {% endif %}
 </td>
 
-<!-- CHEATING -->
+<!-- FINAL RESULT -->
 <td>
-{% if c[5] == 1 %}
-<span class="badge bg-danger">Cheated</span>
+{% if c[6] == "Selected" %}
+<span class="badge bg-success">Selected</span>
+{% elif c[6] == "On Hold" %}
+<span class="badge bg-warning text-dark">On Hold</span>
+{% elif c[6] == "Rejected" %}
+<span class="badge bg-danger">Rejected</span>
+{% elif c[6] == "Cheated" %}
+<span class="badge bg-dark">Cheated</span>
 {% else %}
-<span class="badge bg-success">Clean</span>
+<span class="badge bg-secondary">Pending</span>
 {% endif %}
 </td>
 

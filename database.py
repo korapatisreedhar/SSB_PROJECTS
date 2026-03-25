@@ -30,7 +30,7 @@ FOREIGN KEY(question_id) REFERENCES mcq_questions(id)
     )
     """)
 
-    # ✅ NEW COLUMNS (SAFE ADD - NO ERROR IF EXISTS)
+    # ✅ EXISTING SAFE COLUMNS
     try:
         cur.execute("ALTER TABLE users ADD COLUMN domain TEXT")
     except:
@@ -51,7 +51,17 @@ FOREIGN KEY(question_id) REFERENCES mcq_questions(id)
     except:
         pass
 
+    # ===============================
+    # 🔥 NEW COLUMN (ADDED FIX)
+    # ===============================
+    try:
+        cur.execute("ALTER TABLE users ADD COLUMN override_status TEXT")
+    except:
+        pass
+
+    # ===============================
     # INTERVIEWS TABLE
+    # ===============================
     cur.execute("""
     CREATE TABLE IF NOT EXISTS interviews(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,7 +74,7 @@ FOREIGN KEY(question_id) REFERENCES mcq_questions(id)
     )
     """)
 
-    # CODING PROBLEMS TABLE
+    # CODING PROBLEMS
     cur.execute("""
     CREATE TABLE IF NOT EXISTS coding_problems(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,7 +84,7 @@ FOREIGN KEY(question_id) REFERENCES mcq_questions(id)
     )
     """)
 
-    # TEST CASES TABLE
+    # TEST CASES
     cur.execute("""
     CREATE TABLE IF NOT EXISTS testcases(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -85,7 +95,7 @@ FOREIGN KEY(question_id) REFERENCES mcq_questions(id)
     )
     """)
 
-    # SUBMISSIONS TABLE
+    # SUBMISSIONS
     cur.execute("""
     CREATE TABLE IF NOT EXISTS submissions(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -99,7 +109,7 @@ FOREIGN KEY(question_id) REFERENCES mcq_questions(id)
     )
     """)
 
-    # MCQ QUESTIONS TABLE
+    # MCQ QUESTIONS
     cur.execute("""
     CREATE TABLE IF NOT EXISTS mcq_questions(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -113,7 +123,7 @@ FOREIGN KEY(question_id) REFERENCES mcq_questions(id)
     )
     """)
 
-    # PROFILES TABLE
+    # PROFILES
     cur.execute("""
     CREATE TABLE IF NOT EXISTS profiles(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -127,7 +137,7 @@ FOREIGN KEY(question_id) REFERENCES mcq_questions(id)
     )
     """)
 
-    # ✅ UPDATED MCQ RESULTS TABLE (ONLY CHANGE)
+    # MCQ RESULTS
     cur.execute("""
 CREATE TABLE IF NOT EXISTS mcq_results (
     user_id INTEGER PRIMARY KEY,
@@ -136,13 +146,29 @@ CREATE TABLE IF NOT EXISTS mcq_results (
 )
 """)
 
-    # ✅ SAFE ADD FOR OLD DATABASE
+    # ===============================
+    # CODING RESULTS (YOU ADDED)
+    # ===============================
+    cur.execute("""
+CREATE TABLE IF NOT EXISTS coding_results(
+    user_id INTEGER,
+    problem_id INTEGER,
+    score INTEGER,
+    PRIMARY KEY (user_id, problem_id),
+    FOREIGN KEY(user_id) REFERENCES users(id),
+    FOREIGN KEY(problem_id) REFERENCES coding_problems(id)
+)
+""")
+
+    # SAFE ADD
     try:
         cur.execute("ALTER TABLE mcq_results ADD COLUMN cheated INTEGER DEFAULT 0")
     except:
         pass
 
-    # CREATE DEFAULT ADMIN
+    # ===============================
+    # DEFAULT ADMIN
+    # ===============================
     cur.execute("SELECT id FROM users WHERE email = ?", ("admin@gmail.com",))
     admin = cur.fetchone()
 

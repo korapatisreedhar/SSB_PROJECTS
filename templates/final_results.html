@@ -148,23 +148,21 @@ width:100%;
 <h2 class="mb-4">Final Internship Selection Results</h2>
 
 <div class="card-box">
-
 <table class="table table-striped">
 
 <thead>
-
 <tr>
-
 <th>Rank</th>
 <th>Name</th>
 <th>Email</th>
+<th>MCQ Score</th>
 <th>Coding Score</th>
 <th>Interview Score</th>
 <th>Overall</th>
 <th>Status</th>
-
+<th>Cheated</th>
+<th>Actions</th>
 </tr>
-
 </thead>
 
 <tbody>
@@ -175,22 +173,50 @@ width:100%;
 
 <tr>
 
-<td>{{ loop.index }}</td>
+<td>
+{% if r[0] == 1 %} 🥇
+{% elif r[0] == 2 %} 🥈
+{% elif r[0] == 3 %} 🥉
+{% else %} {{ r[0] }}
+{% endif %}
+</td>
 
-<td>{{ r[0] }}</td>
-<td>{{ r[1] }}</td>
+<td>{{ r[2] }}</td>  <!-- name -->
+<td>{{ r[3] }}</td>  <!-- email -->
 
-<td>{{ r[2] }}%</td>
-<td>{{ r[3] }}%</td>
+<td class="text-primary fw-bold">{{ r[5] }}%</td>
+<td class="text-info fw-bold">{{ r[4] }}%</td>
+<td class="text-warning fw-bold">{{ r[6] }}%</td>
 
-<td>{{ ((r[2] + r[3]) / 2)|round(1) }}%</td>
+<td class="text-success fw-bold">{{ r[7] }}%</td>
 
 <td>
-{% if r[4] == "Selected" %}
+{% if r[8] == "Selected" %}
 <span class="badge bg-success">Selected</span>
+{% elif r[8] == "On Hold" %}
+<span class="badge bg-warning text-dark">On Hold</span>
+{% elif r[8] == "Pending" %}
+<span class="badge bg-secondary">Pending</span>
 {% else %}
 <span class="badge bg-danger">Rejected</span>
 {% endif %}
+</td>
+
+<!-- ✅ CHEATED COLUMN -->
+<td>
+{% if r[9] == 1 %}
+<span class="badge bg-danger">Yes</span>
+<a href="/reset_cheating/{{ r[1] }}" class="btn btn-sm btn-light">Reset</a>
+{% else %}
+<span class="badge bg-success">No</span>
+{% endif %}
+</td>
+
+<!-- ✅ ACTION BUTTONS -->
+<td>
+<a href="/update_status/{{ r[1] }}/Selected" class="btn btn-success btn-sm">Select</a>
+<a href="/update_status/{{ r[1] }}/Rejected" class="btn btn-danger btn-sm">Reject</a>
+<a href="/update_status/{{ r[1] }}/On Hold" class="btn btn-warning btn-sm">Hold</a>
 </td>
 
 </tr>
@@ -198,19 +224,14 @@ width:100%;
 {% endfor %}
 
 {% else %}
-
 <tr>
-<td colspan="7" class="text-center">No final results available</td>
+<td colspan="10" class="text-center">No final results available</td>
 </tr>
-
 {% endif %}
 
 </tbody>
-
 </table>
-
 </div>
-
 </div>
 
 </div>

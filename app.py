@@ -198,107 +198,103 @@ def next_question():
     else:
         return redirect("/final_submit")
     
-
-@app.route("/final_submit")
-def final_submit():
-
-    if "user_id" not in session:
-        return redirect("/")
-
-    user_id = session.get("user_id")
+@app.route("/final_results")
+def final_results():
 
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
-    # ===============================
-    # 🔥 1. MCQ CHEATING
-    # ===============================
-    cur.execute("SELECT cheated FROM mcq_results WHERE user_id=?", (user_id,))
-    data = cur.fetchone()
-    mcq_cheated = data[0] if data else 0
-
-    # ===============================
-    # 🔥 2. CODING CHEATING (SESSION)
-    # ===============================
-    coding_cheated = 1 if session.get("violations", 0) >= 3 else 0
-
-    # ===============================
-    # 🔥 3. INTERVIEW STATUS + CHEATING (FIXED)
-    # ===============================
-    cur.execute("SELECT status FROM interviews WHERE candidate_id=?", (user_id,))
-    interview = cur.fetchone()
-
-    interview_cheated = 0
-
-    if interview:
-        interview_status = str(interview[0]).strip().lower()
-
-        if interview_status == "cheated":
-            interview_cheated = 1
-
-    # ===============================
-    # 🔥 4. FINAL CHEATED FLAG
-    # ===============================
-    cheated = 1 if (mcq_cheated or coding_cheated or interview_cheated) else 0
-
-    # ===============================
-    # 🔥 5. SCORES
-    # ===============================
-    cur.execute("SELECT AVG(score) FROM coding_results WHERE user_id=?", (user_id,))
-    coding_score = cur.fetchone()[0] or 0
-
-    cur.execute("SELECT score FROM mcq_results WHERE user_id=?", (user_id,))
-    mcq = cur.fetchone()
-    mcq_score = mcq[0] if mcq else 0
-
-    total_score = int((mcq_score * 2) + coding_score)
-
-    # ===============================
-    # 🔥 6. UPDATE USERS TABLE
-    # ===============================
     cur.execute("""
-        UPDATE users 
-        SET test_completed = 1,
-            cheated = ?,
-            score = ?
-        WHERE id = ?
-    """, (cheated, total_score, user_id))
+    SELECT 
+        u.id,
+        u.name,
+        u.email,
+        IFNULL(AVG(c.score), 0),
+        IFNULL(m.score, 0),
+        IFNULL(i.score, 0),
+        IFNULL(u.cheated, 0),
+        IFNULL(u.override_status, '')
+    FROM users u
+    LEFT JOIN coding_results c ON u.id = c.user_id
+    LEFT JOIN mcq_results m ON u.id = m.user_id
+    LEFT JOIN interviews i ON u.id = i.candidate_id
+    WHERE u.role='candidate'
+    GROUP BY u.id
+    """)
 
-    # ===============================
-    # 🔥 7. FIX INTERVIEW STATUS (FIXED)
-    # ===============================
-    cur.execute("SELECT id, status FROM interviews WHERE candidate_id=?", (user_id,))
-    existing = cur.fetchone()
-
-    if existing:
-        current_status = str(existing[1]).strip().lower()
-
-        # ❗ DO NOT OVERRIDE IF CHEATED
-        if current_status != "cheated":
-            cur.execute("""
-                UPDATE interviews
-                SET status = 'Completed'
-                WHERE candidate_id = ?
-            """, (user_id,))
-    else:
-        # if no interview record → create one
-        cur.execute("""
-            INSERT INTO interviews (candidate_id, status, score)
-            VALUES (?, 'Completed', 0)
-        """, (user_id,))
-
-    conn.commit()
+    data = cur.fetchall()
     conn.close()
 
-    # ===============================
-    # 🔥 8. CLEAR SESSION
-    # ===============================
-    session.pop("coding_questions", None)
-    session.pop("current_index", None)
-    session.pop("total_questions", None)
-    session.pop("violations", None)
+    temp = []
 
-    return redirect("/performance")
+    for row in data:
+        user_id, name, email, coding, mcq, interview, cheated, override = row
+
+        total_mcq = 15
+
+        mcq_percentage = min((mcq / total_mcq) * 100 if total_mcq else 0, 100)
+        coding_percentage = min(coding, 100)
+        interview_percentage = min(interview, 100)
+
+        overall = int(
+            (mcq_percentage * 0.4) +
+            (coding_percentage * 0.4) +
+            (interview_percentage * 0.2)
+        )
+
+        # ✅ FINAL STATUS
+        if override and cheated == 0:
+            status = override
+
+        elif cheated == 1:
+            status = "Rejected"
+
+        elif mcq == 0 and coding == 0 and interview == 0:
+            status = "Pending"
+
+        elif overall >= 75:
+            status = "Selected"
+
+        elif overall >= 50:
+            status = "On Hold"
+
+        else:
+            status = "Rejected"
+
+        temp.append({
+            "id": user_id,
+            "name": name,
+            "email": email,
+            "coding": int(coding_percentage),
+            "mcq": int(mcq_percentage),
+            "interview": int(interview_percentage),
+            "overall": overall,
+            "status": status,
+            "cheated": cheated
+        })
+
+    # ✅ SORT BY OVERALL
+    temp.sort(key=lambda x: x["overall"], reverse=True)
+
+    results = []
+    rank = 1
+
+    for r in temp:
+        results.append((
+            rank,
+            r["id"],
+            r["name"],
+            r["email"],
+            r["coding"],
+            r["mcq"],
+            r["interview"],
+            r["overall"],
+            r["status"],
+            r["cheated"]
+        ))
+        rank += 1
+
+    return render_template("final_results.html", results=results)
 
 
 
@@ -308,8 +304,6 @@ def final_submit():
 @app.route("/video_interview")
 def video_interview():
     return render_template("video_interview.html")
-
-
 @app.route("/performance")
 def performance():
 
@@ -321,6 +315,7 @@ def performance():
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
 
+    # USER
     cur.execute("SELECT id FROM users WHERE email=?", (email,))
     user = cur.fetchone()
 
@@ -329,17 +324,13 @@ def performance():
 
     user_id = user[0]
 
-    # 🔥 FIX: GET FROM USERS TABLE
+    # CHEATING
     cur.execute("SELECT cheated FROM users WHERE id=?", (user_id,))
-    cheat_data = cur.fetchone()
-    cheated = cheat_data[0] if cheat_data else 0
+    cheated = cur.fetchone()[0]
 
-    # CODING
-    cur.execute("SELECT score FROM coding_results WHERE user_id=?", (user_id,))
-    coding_scores = cur.fetchall()
-
-    total_questions = 2
-    coding_score = sum([s[0] for s in coding_scores]) / total_questions if coding_scores else 0
+    # CODING (AVG)
+    cur.execute("SELECT AVG(score) FROM coding_results WHERE user_id=?", (user_id,))
+    coding_score = cur.fetchone()[0] or 0
 
     # MCQ
     cur.execute("SELECT score FROM mcq_results WHERE user_id=?", (user_id,))
@@ -351,35 +342,49 @@ def performance():
     cur.execute("SELECT COUNT(*) FROM mcq_questions WHERE domain=?", (domain,))
     total_mcq = cur.fetchone()[0]
 
-    mcq_percentage = (mcq_score / total_mcq) * 100 if total_mcq else 0
+    mcq_percentage = min((mcq_score / total_mcq) * 100 if total_mcq else 0, 100)
 
     # INTERVIEW
     cur.execute("SELECT score FROM interviews WHERE candidate_id=?", (user_id,))
     interview = cur.fetchone()
     interview_score = interview[0] if interview else 0
 
-    # FINAL
-    overall = int((mcq_percentage * 0.6) + (coding_score * 0.4))
+    # OVERALL
+    overall = int(
+        (mcq_percentage * 0.4) +
+        (coding_score * 0.4) +
+        (interview_score * 0.2)
+    )
 
-    if overall >= 75:
+    # ✅ FINAL STATUS
+    if cheated == 1:
+        status = "Rejected"
+
+    elif mcq_score == 0 and coding_score == 0 and interview_score == 0:
+        status = "Pending"
+
+    elif overall >= 75:
         status = "Selected"
+
     elif overall >= 50:
         status = "On Hold"
+
     else:
         status = "Rejected"
 
     conn.close()
 
-    return render_template("performance.html",
-                           coding_score=int(coding_score),
-                           mcq_score=int(mcq_percentage),
-                           interview_score=int(interview_score),
-                           overall=overall,
-                           status=status,
-                           disqualified=cheated)
-# ===============================
-# ADMIN PANEL ROUTES
-# ===============================
+    return render_template(
+        "performance.html",
+        coding_score=int(coding_score),
+        mcq_score=int(mcq_percentage),
+        interview_score=int(interview_score),
+        overall=overall,
+        status=status,
+        disqualified=cheated
+    )
+
+
 @app.route("/admin_dashboard")
 def admin_dashboard():
 
@@ -395,42 +400,82 @@ def admin_dashboard():
     cur.execute("SELECT COUNT(*) FROM interviews")
     ai_interviews = cur.fetchone()[0]
 
-    cur.execute("SELECT COUNT(*) FROM interviews WHERE status='Selected'")
-    selected_candidates = cur.fetchone()[0]
-
-    # 🔥 FIXED QUERY
     cur.execute("""
     SELECT 
+        u.id,
         u.name,
         u.email,
-
-        IFNULL(AVG(c.score), 0) as coding_score,
-        IFNULL(m.score, 0) as mcq_score,
-        IFNULL(i.score, 0) as interview_score,
-
-        IFNULL(u.cheated, 0) as cheated,
-
-        CASE 
-            WHEN i.status IS NULL THEN 'Pending'
-            ELSE i.status
-        END as status,
-
-        u.id
-
+        IFNULL(AVG(c.score), 0),
+        IFNULL(m.score, 0),
+        IFNULL(i.score, 0),
+        IFNULL(u.cheated, 0),
+        IFNULL(u.override_status, '')
     FROM users u
-
     LEFT JOIN coding_results c ON u.id = c.user_id
     LEFT JOIN mcq_results m ON u.id = m.user_id
     LEFT JOIN interviews i ON u.id = i.candidate_id
-
     WHERE u.role='candidate'
-
     GROUP BY u.id
-    ORDER BY u.id DESC
-    LIMIT 5
     """)
 
-    candidates = cur.fetchall()
+    data = cur.fetchall()
+
+    selected = rejected = onhold = pending = 0
+    candidates = []
+
+    for row in data:
+        user_id, name, email, coding, mcq, interview, cheated, override = row
+
+        total_mcq = 15
+
+        mcq_percentage = min((mcq / total_mcq) * 100 if total_mcq else 0, 100)
+        coding_percentage = min(coding, 100)
+        interview_percentage = min(interview, 100)
+
+        overall = int(
+            (mcq_percentage * 0.4) +
+            (coding_percentage * 0.4) +
+            (interview_percentage * 0.2)
+        )
+
+        # FINAL STATUS
+        if override:
+            status = override
+
+        elif cheated == 1:
+            status = "Rejected"
+
+        elif mcq == 0 and coding == 0 and interview == 0:
+            status = "Pending"
+
+        elif overall >= 75:
+            status = "Selected"
+
+        elif overall >= 50:
+            status = "On Hold"
+
+        else:
+            status = "Rejected"
+
+        # COUNTS
+        if status == "Selected":
+            selected += 1
+        elif status == "Rejected":
+            rejected += 1
+        elif status == "On Hold":
+            onhold += 1
+        else:
+            pending += 1
+
+        candidates.append((
+            name,
+            email,
+            int(coding_percentage),
+            int(mcq_percentage),
+            int(interview_percentage),
+            status,
+            "Yes" if cheated else "No"
+        ))
 
     conn.close()
 
@@ -439,38 +484,14 @@ def admin_dashboard():
         total_candidates=total_candidates,
         coding_tests=coding_tests,
         ai_interviews=ai_interviews,
-        selected_candidates=selected_candidates,
-        candidates=candidates
+
+        selected_candidates=selected,
+        rejected_candidates=rejected,
+        onhold_candidates=onhold,
+        pending_candidates=pending,
+
+        candidates=candidates[:5]
     )
-
-
-# finally result
-@app.route("/final_results")
-def final_results():
-
-    conn = sqlite3.connect("database.db")
-    cur = conn.cursor()
-
-    cur.execute("""
-    SELECT users.name,
-           users.email,
-           COALESCE(submissions.score,0),
-           COALESCE(interviews.score,0),
-           COALESCE(interviews.status,'Pending')
-    FROM users
-    LEFT JOIN submissions ON users.id = submissions.user_id
-    LEFT JOIN interviews ON users.id = interviews.candidate_id
-    WHERE users.role='candidate'
-    """)
-
-    results = cur.fetchall()
-
-    conn.close()
-
-    return render_template("final_results.html", results=results)
-
-
-# View Candidates
 
 @app.route("/admin_candidates")
 def admin_candidates():
