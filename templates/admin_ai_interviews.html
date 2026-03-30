@@ -193,15 +193,19 @@ width:100%;
 <td>{{ i[0] }}</td>
 <td>{{ i[1] }}</td>
 
-<td>{{ i[2] }}%</td>
-<td>{{ i[2] }}%</td>
-<td>{{ i[2] }}%</td>
-<td>{{ i[2] }}%</td>
-
+<td>{{ i[2] }}%</td> <!-- score -->
+<td>{{ i[3] }}</td>  <!-- feedback -->
+<td>-</td>           <!-- technical (not stored) -->
+<td>-</td>           <!-- overall (not stored) -->
 <td>
-<a href="{{ i[4] }}" class="btn btn-primary btn-sm" target="_blank">View</a>
+{% if i[4] %}
+<a href="{{ url_for('static', filename=i[4]) }}" class="btn btn-primary btn-sm" target="_blank">
+    View
+</a>
+{% else %}
+<span class="text-danger">No Video</span>
+{% endif %}
 </td>
-
 </tr>
 
 {% endfor %}

@@ -295,11 +295,14 @@ width:100%;
 <td>
 
 
-<!-- VIDEO -->
 <td>
+{% if c[7] %}
 <video width="200" controls>
-<source src="{{ url_for('static', filename='interview_videos/interview_' ~ c[7] ~ '.webm') }}" type="video/webm">
+<source src="{{ url_for('static', filename=c[7]) }}" type="video/webm">
 </video>
+{% else %}
+<span>No Video</span>
+{% endif %}
 </td>
 
 </tr>
