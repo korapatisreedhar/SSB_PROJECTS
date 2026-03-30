@@ -230,7 +230,7 @@ def final_results():
     for row in data:
         user_id, name, email, coding, mcq, interview, cheated, override = row
 
-        total_mcq = 15
+        total_mcq = 18
 
         mcq_percentage = min((mcq / total_mcq) * 100 if total_mcq else 0, 100)
         coding_percentage = min(coding, 100)
@@ -243,7 +243,8 @@ def final_results():
         )
 
         # ✅ FINAL STATUS
-        if override and cheated == 0:
+        # ✅ ADMIN OVERRIDE FIRST PRIORITY
+        if override:
             status = override
 
         elif cheated == 1:
@@ -296,8 +297,20 @@ def final_results():
 
     return render_template("final_results.html", results=results)
 
+@app.route("/finish_test")
+def finish_test():
 
+    session.pop("coding_questions", None)
+    session.pop("current_index", None)
+    session.pop("total_questions", None)
 
+    return redirect("/performance")   # ✅ CHANGE HERE
+
+@app.route("/final_submit")
+def final_submit():
+
+    # optional logic
+    return redirect("/performance")
 
 
 
@@ -384,6 +397,27 @@ def performance():
         disqualified=cheated
     )
 
+
+
+@app.route("/update_status", methods=["POST"])
+def update_status():
+    user_id = request.form.get("user_id")
+    action = request.form.get("action")
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    if action == "Selected":
+        cur.execute("UPDATE users SET override_status='Selected' WHERE id=?", (user_id,))
+    elif action == "Rejected":
+        cur.execute("UPDATE users SET override_status='Rejected' WHERE id=?", (user_id,))
+    elif action == "On Hold":
+        cur.execute("UPDATE users SET override_status='On Hold' WHERE id=?", (user_id,))
+
+    conn.commit()
+    conn.close()
+
+    return redirect("/final_results")
 
 @app.route("/admin_dashboard")
 def admin_dashboard():

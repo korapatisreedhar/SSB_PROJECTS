@@ -214,9 +214,28 @@ width:100%;
 
 <!-- ✅ ACTION BUTTONS -->
 <td>
-<a href="/update_status/{{ r[1] }}/Selected" class="btn btn-success btn-sm">Select</a>
-<a href="/update_status/{{ r[1] }}/Rejected" class="btn btn-danger btn-sm">Reject</a>
-<a href="/update_status/{{ r[1] }}/On Hold" class="btn btn-warning btn-sm">Hold</a>
+
+<!-- SELECT -->
+<form method="POST" action="/update_status" style="display:inline;">
+<input type="hidden" name="user_id" value="{{ r[1] }}">
+<input type="hidden" name="action" value="Selected">
+<button class="btn btn-success btn-sm">Select</button>
+</form>
+
+<!-- REJECT -->
+<form method="POST" action="/update_status" style="display:inline;">
+<input type="hidden" name="user_id" value="{{ r[1] }}">
+<input type="hidden" name="action" value="Rejected">
+<button class="btn btn-danger btn-sm">Reject</button>
+</form>
+
+<!-- HOLD -->
+<form method="POST" action="/update_status" style="display:inline;">
+<input type="hidden" name="user_id" value="{{ r[1] }}">
+<input type="hidden" name="action" value="On Hold">
+<button class="btn btn-warning btn-sm">Hold</button>
+</form>
+
 </td>
 
 </tr>
