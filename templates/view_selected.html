@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Selected Candidates</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<style>
+body{
+    margin:0;
+    font-family:'Segoe UI';
+    background:linear-gradient(135deg,#1e3c72,#2a5298);
+    color:white;
+}
+
+.card-box{
+    background:white;
+    color:black;
+    border-radius:12px;
+    padding:20px;
+    box-shadow:0 8px 25px rgba(0,0,0,0.3);
+}
+
+.table thead{
+    background:#1e3c72;
+    color:white;
+}
+
+.table tbody tr:hover{
+    background:#f1f1f1;
+}
+
+.page-title{
+    text-align:center;
+    margin-bottom:20px;
+    font-weight:bold;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="container mt-4">
+
+<a href="/view_status" class="btn btn-light mb-3">
+    ← Back
+</a>
+
+<h2 class="page-title">
+    <i class="fa fa-user-check text-success"></i> Selected Candidates
+</h2>
+
+<div class="card-box">
+
+<table class="table table-bordered text-center">
+
+<thead>
+<tr>
+<th>Name</th>
+<th>Email</th>
+<th>Status</th>
+<th>Action</th>
+</tr>
+</thead>
+
+<tbody>
+
+{% for c in data %}
+<tr>
+<td>{{ c[0] }}</td>
+<td>{{ c[1] }}</td>
+
+<td>
+<span class="badge bg-success">
+    <i class="fa fa-check-circle"></i> Selected
+</span>
+</td>
+
+<td>
+<a href="/send_mail/{{ c[1] }}/Selected" class="btn btn-success btn-sm">
+    <i class="fa fa-envelope"></i> Send Mail
+</a>
+</td>
+
+</tr>
+{% endfor %}
+
+</tbody>
+
+</table>
+
+</div>
+
+</div>
+
+</body>
+</html>

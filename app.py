@@ -434,6 +434,9 @@ def update_status():
     conn.close()
 
     return redirect("/final_results")
+
+
+
 @app.route("/admin_dashboard")
 def admin_dashboard():
 
@@ -505,7 +508,7 @@ GROUP BY u.id
             status = override
 
         # 🔥 PENDING IF ANY SECTION NOT DONE
-        elif mcq == 0 or coding == 0 or interview == 0:
+        elif mcq_percentage == 0 or coding_percentage == 0 or interview_percentage == 0:
             status = "Pending"
 
         else:
@@ -538,9 +541,9 @@ GROUP BY u.id
     int(coding_percentage),
     int(mcq_percentage),
     int(interview_percentage),
-    status,
-    status,
-    video,   # ✅ ADD THIS
+    "Completed" if interview_percentage > 0 else "Pending",  # interview status
+    status,   # final result
+    video,
     "Yes" if cheated else "No"
 ))
 
@@ -1815,6 +1818,180 @@ def log_violation():
     print(f"[CHEAT] User:{session['user_id']} | {reason} | Count:{session['violations']}")
 
     return jsonify({"status": "logged"})
+
+@app.route("/view_selected")
+def view_selected():
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute("""
+    SELECT name, email FROM users
+    WHERE override_status='Selected'
+    """)
+
+    data = cur.fetchall()
+    conn.close()
+
+    return render_template("view_selected.html", data=data)
+
+
+
+
+
+@app.route("/view_rejected")
+def view_rejected():
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute("""
+    SELECT name, email FROM users
+    WHERE override_status='Rejected' OR cheated=1
+    """)
+
+    data = cur.fetchall()
+    conn.close()
+
+    return render_template("view_rejected.html", data=data)
+
+
+@app.route("/view_status")
+def view_status():
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute("""
+    SELECT 
+        u.name,
+        u.email,
+        IFNULL(m.score, 0),
+        IFNULL(AVG(c.score), 0),
+        IFNULL(i.score, 0),
+        u.cheated,
+        u.override_status
+    FROM users u
+    LEFT JOIN mcq_results m ON u.id = m.user_id
+    LEFT JOIN coding_results c ON u.id = c.user_id
+    LEFT JOIN (
+        SELECT * FROM interviews
+        WHERE id IN (
+            SELECT MAX(id) FROM interviews GROUP BY candidate_id
+        )
+    ) i ON u.id = i.candidate_id
+    WHERE u.role='candidate'
+    GROUP BY u.id
+    """)
+
+    data = cur.fetchall()
+    conn.close()
+
+    final_data = []
+
+    for row in data:
+        name, email, mcq, coding, interview, cheated, override = row
+
+        mcq_per = min((mcq/15)*100 if mcq else 0, 100)
+        coding_per = min(coding, 100)
+        interview_per = min(interview, 100)
+
+        # STATUS LOGIC
+        if cheated == 1:
+            status = "Cheated"
+        elif override:
+            status = override
+        elif mcq == 0 or coding == 0 or interview == 0:
+            status = "Pending"
+        else:
+            overall = int((mcq_per*0.4)+(coding_per*0.4)+(interview_per*0.2))
+            if overall >= 75:
+                status = "Selected"
+            elif overall >= 50:
+                status = "On Hold"
+            else:
+                status = "Rejected"
+
+        final_data.append((name, email, mcq_per, coding_per, interview_per, status))
+
+    return render_template("view_status.html", data=final_data)
+
+
+
+
+import smtplib
+from email.mime.text import MIMEText
+
+@app.route("/send_mail/<email>/<status>")
+def send_mail_route(email, status):
+
+    sender_email = "korapatisreedhar9999@gmail.com"
+    password = "puqm qfqj qdua ebtm"   # Gmail App Password
+
+    # ===============================
+    # PROFESSIONAL EMAIL CONTENT
+    # ===============================
+    if status == "Selected":
+        subject = "Congratulations! You are Selected 🎉"
+
+        body = f"""
+Dear Candidate,
+
+Greetings from SSB Training and Placement Pvt Ltd.
+
+We are pleased to inform you that you have successfully cleared the recruitment process and have been SELECTED.
+
+Your performance throughout the assessment was impressive, and we truly appreciate your effort and dedication.
+
+Our HR team will get in touch with you shortly regarding the next steps.
+
+Congratulations once again, and we look forward to working with you.
+
+Warm Regards,  
+SSB Training and Placement Pvt Ltd  
+HR Team
+"""
+
+    else:
+        subject = "Application Status Update"
+
+        body = f"""
+Dear Candidate,
+
+Greetings from SSB Training and Placement Pvt Ltd.
+
+Thank you for taking part in our recruitment process.
+
+After careful evaluation, we regret to inform you that you have not been selected for this opportunity at this time.
+
+We sincerely appreciate your interest in our organization and encourage you to apply for future openings.
+
+We wish you all the very best in your career.
+
+Warm Regards,  
+SSB Training and Placement Pvt Ltd  
+HR Team
+"""
+
+    # ===============================
+    # EMAIL SETUP
+    # ===============================
+    msg = MIMEText(body)
+    msg["Subject"] = subject
+    msg["From"] = sender_email
+    msg["To"] = email
+
+    try:
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+        server.login(sender_email, password)
+        server.sendmail(sender_email, email, msg.as_string())
+        server.quit()
+
+        return "<h2 style='text-align:center;margin-top:100px;'>✅ Email Sent Successfully</h2>"
+
+    except Exception as e:
+        return f"<h3 style='color:red;'>Error: {str(e)}</h3>"
 
 if __name__ == "__main__":
     app.run(debug=True)
