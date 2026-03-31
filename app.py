@@ -325,7 +325,42 @@ def final_submit():
 
 @app.route("/video_interview")
 def video_interview():
+
+    if "email" not in session:
+        return redirect("/")
+
+    email = session.get("email")
+
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute("SELECT id FROM users WHERE email=?", (email,))
+    user = cur.fetchone()
+
+    if not user:
+        conn.close()
+        return redirect("/")
+
+    user_id = user[0]
+
+    cur.execute("""
+        SELECT score FROM interviews
+        WHERE candidate_id=?
+        ORDER BY id DESC LIMIT 1
+    """, (user_id,))
+
+    data = cur.fetchone()
+
+    # 🔥 MAIN FIX
+    if data and data[0] > 0:
+        conn.close()
+        return redirect("/dashboard?msg=already_attended")
+
+    conn.close()
+
     return render_template("video_interview.html")
+
+
 
 
 @app.route("/performance")
@@ -1121,6 +1156,10 @@ def mcq_test():
         return f"No MCQ questions found for domain: {domain}"
 
     return render_template("mcq_test.html", questions=questions)
+    
+    
+
+
 @app.route("/submit_mcq", methods=["POST"])
 def submit_mcq():
 
@@ -1413,7 +1452,6 @@ def submit_interview():
     if not data:
         return {"status": "error", "message": "No data received"}
 
-    # 🔥 IMPORTANT FIX
     raw_status = data.get("status", "completed")
 
     if str(raw_status).lower() == "cheated":
@@ -1444,6 +1482,19 @@ def submit_interview():
     if user:
         user_id = user[0]
 
+        # 🔥 ADD THIS BLOCK (MAIN FIX)
+        cur.execute("""
+        SELECT score FROM interviews
+        WHERE candidate_id=?
+        ORDER BY id DESC LIMIT 1
+        """, (user_id,))
+        already = cur.fetchone()
+
+        if already and already[0] > 0:
+            conn.close()
+            return {"status": "error", "message": "Interview already submitted"}
+
+        # 🔥 YOUR OLD LOGIC (UNCHANGED)
         cur.execute("SELECT id FROM interviews WHERE candidate_id=? ORDER BY id DESC LIMIT 1", (user_id,))
         existing = cur.fetchone()
 
@@ -1459,7 +1510,7 @@ def submit_interview():
                 VALUES (?, ?, ?)
             """, (user_id, status, communication_score))
 
-        # 🔥 ALSO UPDATE USERS TABLE IF CHEATED
+        # cheating flag
         if status == "Cheated":
             cur.execute("UPDATE users SET cheated=1 WHERE id=?", (user_id,))
 
@@ -1468,6 +1519,7 @@ def submit_interview():
     conn.close()
 
     return {"status": "ok"}
+
 
 
 
