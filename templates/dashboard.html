@@ -184,7 +184,9 @@ width:100%;
 
 <a class="active" href="/dashboard">🏠 Dashboard</a>
 
-{% if test_completed %}
+{% if cheated == 1 %}
+<a class="disabled text-danger">❌ Disqualified</a>
+{% elif test_completed %}
 <a class="disabled text-muted">💻 Coding Assessment (Completed)</a>
 {% else %}
 <a href="#" onclick="startExam()">💻 Test Assessment</a>
@@ -219,8 +221,9 @@ width:100%;
 <p>
 Test your analytical thinking and coding expertise with MCQ and programming challenges.
 </p>
-
-{% if test_completed %}
+{% if cheated == 1 %}
+<button class="btn btn-danger" disabled>❌ Disqualified</button>
+{% elif test_completed %}
 <button class="btn btn-secondary" disabled>Test Completed</button>
 {% else %}
 <button class="btn btn-info" onclick="startExam()">Start Test</button>
@@ -242,9 +245,15 @@ Test your analytical thinking and coding expertise with MCQ and programming chal
 Test your communication skills and problem-solving ability through AI-powered interviews.
 </p>
 
+{% if cheated == 1 %}
+<button class="btn btn-danger w-100" disabled>
+❌ Disqualified
+</button>
+{% else %}
 <a href="/video_interview" class="btn btn-dashboard">
 Start Interview
 </a>
+{% endif %}
 
 </div>
 
@@ -282,7 +291,11 @@ View Results
 Your application status will appear here after completing all assessments.
 </p>
 
+{% if cheated == 1 %}
+<span class="badge bg-danger">Disqualified</span>
+{% else %}
 <span class="badge bg-warning">Pending Evaluation</span>
+{% endif %}
 
 </div>
 

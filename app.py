@@ -94,7 +94,17 @@ def dashboard():
 
     test_completed = True if (mcq_done and coding_count >= 2) else False
 
-    return render_template("dashboard.html", name=name, test_completed=test_completed)
+    # 🔥 ADD THIS BEFORE RETURN
+    cur = sqlite3.connect("database.db").cursor()
+    cur.execute("SELECT cheated FROM users WHERE email=?", (email,))
+    cheated = cur.fetchone()[0]
+
+    return render_template(
+    "dashboard.html",
+    name=name,
+    test_completed=test_completed,
+    cheated=cheated   # 🔥 ADD THIS
+)
 @app.route("/start_coding_test")
 def start_coding_test():
     if session.get("blocked"):
@@ -1973,6 +1983,9 @@ def view_status():
 
 import smtplib
 from email.mime.text import MIMEText
+from flask import redirect, url_for
+import smtplib
+from email.mime.text import MIMEText
 
 @app.route("/send_mail/<email>/<status>")
 def send_mail_route(email, status):
@@ -1981,54 +1994,94 @@ def send_mail_route(email, status):
     password = "puqm qfqj qdua ebtm"   # Gmail App Password
 
     # ===============================
-    # PROFESSIONAL EMAIL CONTENT
+    # PROFESSIONAL HTML EMAIL
     # ===============================
     if status == "Selected":
-        subject = "Congratulations! You are Selected 🎉"
+        subject = "Offer Confirmation – Congratulations 🎉"
 
         body = f"""
-Dear Candidate,
+        <html>
+        <body style="font-family:Segoe UI;">
 
-Greetings from SSB Training and Placement Pvt Ltd.
+        <h2 style="color:#1e3c72;">SSB Training & Placement Pvt Ltd</h2>
 
-We are pleased to inform you that you have successfully cleared the recruitment process and have been SELECTED.
+        <p>Dear Candidate,</p>
 
-Your performance throughout the assessment was impressive, and we truly appreciate your effort and dedication.
+        <p>
+        We are delighted to inform you that you have been 
+        <b style="color:green;">SELECTED</b> for the opportunity at our organization.
+        </p>
 
-Our HR team will get in touch with you shortly regarding the next steps.
+        <p>
+        Your performance throughout the selection process has been exceptional, 
+        and we truly appreciate your effort and dedication.
+        </p>
 
-Congratulations once again, and we look forward to working with you.
+        <p>
+        Our HR team will contact you shortly with further details regarding onboarding.
+        </p>
 
-Warm Regards,  
-SSB Training and Placement Pvt Ltd  
-HR Team
-"""
+        <p>
+        We look forward to welcoming you to our team.
+        </p>
+
+        <br>
+
+        <p><b>Best Regards,</b><br>
+        HR Team<br>
+        SSB Training and Placement Pvt Ltd</p>
+
+        <hr>
+        <small>This is an automated email. Please do not reply.</small>
+
+        </body>
+        </html>
+        """
 
     else:
         subject = "Application Status Update"
 
         body = f"""
-Dear Candidate,
+        <html>
+        <body style="font-family:Segoe UI;">
 
-Greetings from SSB Training and Placement Pvt Ltd.
+        <h2 style="color:#1e3c72;">SSB Training & Placement Pvt Ltd</h2>
 
-Thank you for taking part in our recruitment process.
+        <p>Dear Candidate,</p>
 
-After careful evaluation, we regret to inform you that you have not been selected for this opportunity at this time.
+        <p>
+        Thank you for your interest in our organization and for participating in the recruitment process.
+        </p>
 
-We sincerely appreciate your interest in our organization and encourage you to apply for future openings.
+        <p>
+        After careful consideration, we regret to inform you that you have not been selected at this time.
+        </p>
 
-We wish you all the very best in your career.
+        <p>
+        We encourage you to apply for future opportunities that match your skills and experience.
+        </p>
 
-Warm Regards,  
-SSB Training and Placement Pvt Ltd  
-HR Team
-"""
+        <p>
+        We wish you success in your career journey.
+        </p>
+
+        <br>
+
+        <p><b>Best Regards,</b><br>
+        HR Team<br>
+        SSB Training and Placement Pvt Ltd</p>
+
+        <hr>
+        <small>This is an automated email. Please do not reply.</small>
+
+        </body>
+        </html>
+        """
 
     # ===============================
     # EMAIL SETUP
     # ===============================
-    msg = MIMEText(body)
+    msg = MIMEText(body, "html")   # IMPORTANT: HTML email
     msg["Subject"] = subject
     msg["From"] = sender_email
     msg["To"] = email
@@ -2040,7 +2093,27 @@ HR Team
         server.sendmail(sender_email, email, msg.as_string())
         server.quit()
 
-        return "<h2 style='text-align:center;margin-top:100px;'>✅ Email Sent Successfully</h2>"
+        # ✅ SUCCESS PAGE WITH BUTTON
+        return """
+        <div style="display:flex;justify-content:center;align-items:center;height:80vh;
+                    background:linear-gradient(135deg,#1e3c72,#2a5298);">
+
+            <div style="background:white;padding:40px;border-radius:12px;
+                        text-align:center;box-shadow:0 8px 25px rgba(0,0,0,0.3);">
+
+                <h2 style="color:green;">✅ Email Sent Successfully</h2>
+                <br>
+
+                <a href="/admin_dashboard"
+                   style="background:#1e3c72;color:white;padding:10px 20px;
+                          border-radius:6px;text-decoration:none;">
+                    ⬅ Go to Dashboard
+                </a>
+
+            </div>
+
+        </div>
+        """
 
     except Exception as e:
         return f"<h3 style='color:red;'>Error: {str(e)}</h3>"
